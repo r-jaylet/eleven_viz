@@ -1,17 +1,8 @@
-# FC Performance Insights
+# eleven strategy - FC Performance Insights
 
 ## Overview
 
 FC Performance Insights is a platform designed to track, analyze, and visualize the physical performance of football players. It helps coaches and teams monitor key metrics such as load demand, injury history, physical capabilities, and recovery status.
-
-## Features
-
-- **Load Demand**: Track games, matches played, training sessions, and season availability.
-- **Injury History**: Monitor injury status, risk categories, and recent injuries.
-- **Physical Development**: Assess test capabilities, strength & conditioning plans, and priorities.
-- **Biography**: Access player details such as nationality, position, team, and league.
-- **Recovery**: Analyze nutrition, sleep, wellness, and performance adherence.
-- **External Factors**: Evaluate external influences like environment, team dynamics, and motivation.
 
 ## Pages
 
@@ -20,13 +11,33 @@ FC Performance Insights is a platform designed to track, analyze, and visualize 
 - **Physical Capabilities**: Analyze players' physical abilities and fitness tests.
 - **Recovery Status**: Monitor player recovery status, including sleep, nutrition, and wellness.
 
-## FAQ
 
-### What is FC Performance Insights?
-A platform to track and analyze the performance of football players through various metrics like load demand, injury history, physical capabilities, and recovery status.
+## Features
 
-### How can I use the platform?
-Use the navigation menu on the left to explore different insights and analytics for players and teams.
+- **Injury History**: Monitor injury status, risk categories, and recent injuries.
+- **Physical Development**: Assess test capabilities, strength & conditioning plans, and priorities.
+- **Biography**: Access player details such as nationality, position, team, and league.
+- **Recovery**: Analyze nutrition, sleep, wellness, and performance adherence.
+- **External Factors**: Evaluate external influences like environment, team dynamics, and motivation.
 
-### Can I customize the data for my team?
-Yes, the platform allows personalized data input and analysis to optimize player performance.
+
+## Getting Started
+
+### Install Dependencies
+
+Run the following comand :
+```bash
+pip install -r requirements.txt
+```
+
+### Run the Application
+
+```bash
+streamlit run main.py
+```
+
+
+## Contact and supprt : 
+For issues or inquiries, reach out to:
+- remi.jaylet@eleven-strategy.com
+- marc-antoine.samson@eleven-strategy.com
