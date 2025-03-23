@@ -6,30 +6,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-# Set page config
-# st.set_page_config(page_title="Athletic Testing Dashboard", layout="wide")
+from src.data_preprocessing import load_physical_capabilities
 
 
 def show():
-    st.title("Physical Capabilities")
-    st.write("### Overview")
-    st.write(
-        "This page displays physical capabilities data. Below, you can explore the first 10 records."
-    )
-
-    # Load Physical Capabilities CSV file
     try:
-        df = pd.read_csv("data/CFC Physical Capability Data.csv")
-        st.dataframe(df.head(10), use_container_width=True)
 
-        # Convert date string to datetime
-        df["testDate"] = pd.to_datetime(df["testDate"], format="%d/%m/%Y")
-
-        # Sort by date
-        df = df.sort_values("testDate")
-
-        # Convert empty benchmarkPct to NaN
-        df["benchmarkPct"] = pd.to_numeric(df["benchmarkPct"], errors="coerce")
+        df = load_physical_capabilities()
 
         # Dashboard title
         st.title("Athletic Performance Analytics Dashboard")

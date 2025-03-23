@@ -1,59 +1,17 @@
 from datetime import datetime
 
-import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-# Set page config
-# st.set_page_config(page_title="Athlete Recovery Status Dashboard", layout="wide")
+from src.data_preprocessing import load_recovery_status
 
 
 def show():
-    st.title("Recovery Status")
-    st.write("### Overview")
-    st.write(
-        "This page displays recovery status data. Below, you can explore the first 10 records."
-    )
-
-    # Load Recovery Status CSV file
     try:
-        df = pd.read_csv("data/CFC Recovery status Data.csv")
-        st.dataframe(df.head(10), use_container_width=True)
 
-        # Convert date string to datetime
-        df["sessionDate"] = pd.to_datetime(
-            df["sessionDate"], format="%d/%m/%Y"
-        )
-
-        # Sort by date
-        df = df.sort_values("sessionDate")
-
-        # Convert empty values to NaN
-        df["value"] = pd.to_numeric(df["value"], errors="coerce")
-
-        # Add week number for weekly analysis
-        df["week"] = df["sessionDate"].dt.isocalendar().week
-        df["month"] = df["sessionDate"].dt.month_name()
-
-        # Extract metric type (completeness or composite)
-        df["metric_type"] = df["metric"].apply(
-            lambda x: (
-                "completeness"
-                if "completeness" in x
-                else ("composite" if "composite" in x else "score")
-            )
-        )
-
-        # Extract base metric name without the type and baseline
-        df["base_metric"] = df["metric"].apply(
-            lambda x: x.replace("_baseline_completeness", "")
-            .replace("_baseline_composite", "")
-            .replace("_baseline_score", "")
-        )
-
-        # Dashboard title
+        df = load_recovery_status()
         st.title("Athlete Recovery Status Dashboard")
         st.markdown("### Recovery Metrics and Baseline Analysis")
 
@@ -578,28 +536,6 @@ def show():
             latest_date = df["sessionDate"].max()
             days_since_last = (datetime.now() - latest_date).days
             st.metric("Days Since Last Assessment", days_since_last)
-
-        # Final notes
-        st.markdown(
-            """
-        ### Insights
-        - The dashboard shows recovery status tracking across multiple categories
-        - Completeness metrics indicate how thoroughly each assessment area was evaluated
-        - Daily tracking allows for monitoring recovery status over time
-        - Pattern analysis helps identify correlations between different recovery metrics
-        """
-        )
-
-        # Add a footer with data quality notes
-        st.markdown("---")
-        st.markdown(
-            """
-        **Data Quality Notes:**
-        - Empty values in the dataset are treated as missing data
-        - Completeness metrics range from 0 to 1, with 1 being fully complete
-        - Composite scores may have different scales depending on the category
-        """
-        )
 
     except FileNotFoundError:
         st.error(
