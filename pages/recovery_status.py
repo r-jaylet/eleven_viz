@@ -1,16 +1,23 @@
-from datetime import datetime
-
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 from src.data_preprocessing import load_recovery_status
+from src.recovery_viz import (
+    create_category_comparison,
+    create_category_completeness_bar,
+    create_category_completeness_time,
+    create_category_composite_time,
+    create_completeness_heatmap,
+    create_completeness_patterns,
+    create_completeness_radar,
+    create_daily_completeness_line,
+    create_daily_tracking,
+    create_date_metrics_bar,
+)
 
 
 def show():
     try:
-
         df = load_recovery_status()
         st.title("Athlete Recovery Status Dashboard")
         st.markdown("### Recovery Metrics and Baseline Analysis")
@@ -34,77 +41,21 @@ def show():
 
             # Pivot table for heatmap
             if not completeness_df.empty:
-                pivot_completeness = completeness_df.pivot_table(
-                    index="sessionDate",
-                    columns="category",
-                    values="value",
-                    aggfunc="first",
-                ).fillna(0)
-
-                # Create a completeness heatmap by date and category
-                fig_completeness = px.imshow(
-                    pivot_completeness,
-                    labels=dict(x="Category", y="Date", color="Completeness"),
-                    x=pivot_completeness.columns,
-                    y=pivot_completeness.index.strftime("%d %b"),
-                    color_continuous_scale="YlGnBu",
-                    title="Assessment Completeness by Category and Date",
-                )
-
-                fig_completeness.update_layout(
-                    height=400,
-                    xaxis_title="Assessment Category",
-                    yaxis_title="Session Date",
-                )
-
+                fig_completeness = create_completeness_heatmap(completeness_df)
                 st.plotly_chart(fig_completeness, use_container_width=True)
 
             col1, col2 = st.columns(2)
 
             with col1:
-                # Category completeness bar chart
-                category_completeness = (
-                    completeness_df.groupby("category")["value"]
-                    .mean()
-                    .reset_index()
+                fig_cat_completeness = create_category_completeness_bar(
+                    completeness_df
                 )
-
-                fig_cat_completeness = px.bar(
-                    category_completeness,
-                    x="category",
-                    y="value",
-                    title="Average Completeness by Category",
-                    labels={
-                        "value": "Average Completeness",
-                        "category": "Category",
-                    },
-                    color="category",
-                    color_discrete_sequence=px.colors.qualitative.Plotly,
-                )
-
-                fig_cat_completeness.update_layout(showlegend=False)
                 st.plotly_chart(fig_cat_completeness, use_container_width=True)
 
             with col2:
-                # Daily completeness line chart
-                daily_completeness = (
-                    completeness_df.groupby("sessionDate")["value"]
-                    .mean()
-                    .reset_index()
+                fig_daily_completeness = create_daily_completeness_line(
+                    completeness_df
                 )
-
-                fig_daily_completeness = px.line(
-                    daily_completeness,
-                    x="sessionDate",
-                    y="value",
-                    title="Daily Average Completeness",
-                    labels={
-                        "value": "Average Completeness",
-                        "sessionDate": "Date",
-                    },
-                    markers=True,
-                )
-
                 st.plotly_chart(
                     fig_daily_completeness, use_container_width=True
                 )
@@ -119,24 +70,7 @@ def show():
                 st.subheader(
                     f"Latest Completeness Overview ({latest_date.strftime('%d %b %Y')})"
                 )
-
-                fig_radar = go.Figure()
-
-                fig_radar.add_trace(
-                    go.Scatterpolar(
-                        r=latest_completeness["value"],
-                        theta=latest_completeness["category"],
-                        fill="toself",
-                        name="Completeness",
-                    )
-                )
-
-                fig_radar.update_layout(
-                    polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
-                    title="Latest Completeness by Category",
-                    showlegend=False,
-                )
-
+                fig_radar = create_completeness_radar(latest_completeness)
                 st.plotly_chart(fig_radar, use_container_width=True)
 
         # Tab 2: Category Overview
@@ -170,21 +104,10 @@ def show():
 
             with col1:
                 if not completeness_data.empty:
-                    fig_cat_completeness_time = px.line(
-                        completeness_data,
-                        x="sessionDate",
-                        y="value",
-                        title=f"{selected_category} Completeness Over Time",
-                        labels={
-                            "value": "Completeness",
-                            "sessionDate": "Date",
-                        },
-                        markers=True,
-                        line_shape="linear",
-                    )
-
-                    fig_cat_completeness_time.update_layout(
-                        yaxis_range=[0, 1.1]
+                    fig_cat_completeness_time = (
+                        create_category_completeness_time(
+                            completeness_data, selected_category
+                        )
                     )
                     st.plotly_chart(
                         fig_cat_completeness_time, use_container_width=True
@@ -195,19 +118,9 @@ def show():
                     not composite_data.empty
                     and not pd.isna(composite_data["value"]).all()
                 ):
-                    fig_cat_composite_time = px.line(
-                        composite_data,
-                        x="sessionDate",
-                        y="value",
-                        title=f"{selected_category} Composite Score Over Time",
-                        labels={
-                            "value": "Composite Score",
-                            "sessionDate": "Date",
-                        },
-                        markers=True,
-                        line_shape="linear",
+                    fig_cat_composite_time = create_category_composite_time(
+                        composite_data, selected_category
                     )
-
                     st.plotly_chart(
                         fig_cat_composite_time, use_container_width=True
                     )
@@ -242,47 +155,9 @@ def show():
                     not pivot_latest.empty
                     and "completeness" in pivot_latest.columns
                 ):
-                    # Create a comparison bar chart
-                    fig_category_comparison = go.Figure()
-
-                    if "completeness" in pivot_latest.columns:
-                        fig_category_comparison.add_trace(
-                            go.Bar(
-                                x=pivot_latest["category"],
-                                y=pivot_latest["completeness"],
-                                name="Completeness",
-                                marker_color="royalblue",
-                            )
-                        )
-
-                    if (
-                        "composite" in pivot_latest.columns
-                        and not pivot_latest["composite"].isna().all()
-                    ):
-                        # Normalize composite scores for comparison
-                        if pivot_latest["composite"].max() > 0:
-                            normalized_composite = (
-                                pivot_latest["composite"]
-                                / pivot_latest["composite"].max()
-                            )
-
-                            fig_category_comparison.add_trace(
-                                go.Bar(
-                                    x=pivot_latest["category"],
-                                    y=normalized_composite,
-                                    name="Normalized Composite Score",
-                                    marker_color="firebrick",
-                                )
-                            )
-
-                    fig_category_comparison.update_layout(
-                        title="Latest Category Metrics Comparison",
-                        xaxis_title="Category",
-                        yaxis_title="Value",
-                        barmode="group",
-                        legend_title="Metric Type",
+                    fig_category_comparison = create_category_comparison(
+                        pivot_latest
                     )
-
                     st.plotly_chart(
                         fig_category_comparison, use_container_width=True
                     )
@@ -307,39 +182,7 @@ def show():
             daily_stats["mean"] = daily_stats["mean"].fillna(0)
 
             # Create a line chart with markers for daily tracking
-            fig_daily_tracking = px.scatter(
-                daily_stats,
-                x="sessionDate",
-                y="mean",
-                size="count",
-                color="mean",
-                title="Daily Recovery Status Overview",
-                labels={
-                    "sessionDate": "Date",
-                    "mean": "Average Value",
-                    "count": "Number of Metrics",
-                },
-                color_continuous_scale="RdYlGn",
-                size_max=20,
-            )
-
-            # Add connecting lines
-            fig_daily_tracking.add_trace(
-                go.Scatter(
-                    x=daily_stats["sessionDate"],
-                    y=daily_stats["mean"],
-                    mode="lines",
-                    line=dict(color="grey", width=1),
-                    showlegend=False,
-                )
-            )
-
-            fig_daily_tracking.update_layout(
-                height=400,
-                xaxis_title="Session Date",
-                yaxis_title="Average Recovery Value",
-            )
-
+            fig_daily_tracking = create_daily_tracking(daily_stats)
             st.plotly_chart(fig_daily_tracking, use_container_width=True)
 
             # Daily details
@@ -361,27 +204,9 @@ def show():
                 date_values = date_data.dropna(subset=["value"]).copy()
 
                 if not date_values.empty:
-                    fig_date_metrics = px.bar(
-                        date_values,
-                        x="metric",
-                        y="value",
-                        color="category",
-                        title=f"All Recovery Metrics for {pd.to_datetime(selected_date).strftime('%d %b %Y')}",
-                        labels={
-                            "value": "Value",
-                            "metric": "Metric",
-                            "category": "Category",
-                        },
-                        hover_data=["metric_type"],
+                    fig_date_metrics = create_date_metrics_bar(
+                        date_values, selected_date
                     )
-
-                    fig_date_metrics.update_layout(
-                        height=500,
-                        xaxis_tickangle=-45,
-                        xaxis_title="",
-                        barmode="group",
-                    )
-
                     st.plotly_chart(fig_date_metrics, use_container_width=True)
 
                 # Display raw data in a table
@@ -410,31 +235,10 @@ def show():
             completeness_df = df[df["metric_type"] == "completeness"].copy()
 
             if not completeness_df.empty:
-                fig_pattern = px.line(
-                    completeness_df,
-                    x="sessionDate",
-                    y="value",
-                    color="category",
-                    title="Completeness Patterns by Category",
-                    labels={
-                        "value": "Completeness",
-                        "sessionDate": "Date",
-                        "category": "Category",
-                    },
-                    markers=True,
-                )
-
-                fig_pattern.update_layout(
-                    height=400,
-                    xaxis_title="Date",
-                    yaxis_title="Completeness Value",
-                    legend_title="Category",
-                )
-
+                fig_pattern = create_completeness_patterns(completeness_df)
                 st.plotly_chart(fig_pattern, use_container_width=True)
 
             # Correlation heatmap between metrics
-            # First, pivot the data to have metrics as columns
             if not df.empty:
                 pivot_corr = df.pivot_table(
                     index="sessionDate",
@@ -442,100 +246,6 @@ def show():
                     values="value",
                     aggfunc="first",
                 )
-
-                # Calculate correlation
-                corr_matrix = pivot_corr.corr(min_periods=1)
-
-                # Drop columns and rows with all NaN
-                corr_matrix = corr_matrix.dropna(how="all").dropna(
-                    how="all", axis=1
-                )
-
-                if (
-                    not corr_matrix.empty
-                    and corr_matrix.shape[0] > 1
-                    and corr_matrix.shape[1] > 1
-                ):
-                    # Create correlation heatmap
-                    fig_corr = px.imshow(
-                        corr_matrix,
-                        labels=dict(
-                            x="Metric", y="Metric", color="Correlation"
-                        ),
-                        x=corr_matrix.columns,
-                        y=corr_matrix.index,
-                        color_continuous_scale="RdBu_r",
-                        range_color=[-1, 1],
-                        title="Correlation Between Recovery Metrics",
-                    )
-
-                    fig_corr.update_layout(height=600, xaxis_tickangle=-45)
-
-                    st.plotly_chart(fig_corr, use_container_width=True)
-                else:
-                    st.info(
-                        "Not enough data to calculate meaningful correlations between metrics."
-                    )
-
-            # Add a composite metrics analysis section if there's data
-            composite_df = df[df["metric_type"] == "composite"].copy()
-
-            if (
-                not composite_df.empty
-                and not pd.isna(composite_df["value"]).all()
-            ):
-                st.subheader("Composite Metrics Analysis")
-
-                # Create composite metrics visualization
-                fig_composite = px.line(
-                    composite_df,
-                    x="sessionDate",
-                    y="value",
-                    color="category",
-                    title="Composite Scores by Category",
-                    labels={
-                        "value": "Composite Score",
-                        "sessionDate": "Date",
-                        "category": "Category",
-                    },
-                    markers=True,
-                )
-
-                fig_composite.update_layout(
-                    height=400,
-                    xaxis_title="Date",
-                    yaxis_title="Composite Score",
-                    legend_title="Category",
-                )
-
-                st.plotly_chart(fig_composite, use_container_width=True)
-
-        # Summary metrics at the bottom
-        st.markdown("---")
-
-        # Key metrics summary
-        col1, col2, col3, col4 = st.columns(4)
-
-        with col1:
-            total_assessments = df.dropna(subset=["value"])[
-                "sessionDate"
-            ].nunique()
-            st.metric("Total Assessment Days", total_assessments)
-
-        with col2:
-            avg_completeness = df[df["metric_type"] == "completeness"][
-                "value"
-            ].mean()
-            st.metric("Avg Completeness", f"{avg_completeness:.2f}")
-
-        with col3:
-            categories_tracked = df["category"].nunique()
-            st.metric("Categories Tracked", categories_tracked)
-
-        with col4:
-            latest_date = df["sessionDate"].max()
-            days_since_last = (datetime.now() - latest_date).days
-            st.metric("Days Since Last Assessment", days_since_last)
 
     except FileNotFoundError:
         st.error(
