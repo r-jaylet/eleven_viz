@@ -1,0 +1,18 @@
+{
+    "players": {
+        "marc_cucurella": {
+            "name": "Marc Cucurella",
+            "nationality": "Spain",
+            "team": "Chelsea",
+            "age": 26,
+            "position": "Left Back"
+        },
+        "jordan_pickford": {
+            "name": "Jordan Pickford",
+            "nationality": "England",
+            "team": "Everton",
+            "age": 28,
+            "position": "Goalkeeper"
+        }
+    }
+}

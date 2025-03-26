@@ -7,9 +7,9 @@ FC Performance Insights is a platform designed to track, analyze, and visualize 
 ## Pages
 
 - **Home**: Introduction to the platform with key performance insights.
-- **GPS**: Explore GPS-based performance metrics and analysis.
-- **Physical Capabilities**: Analyze players' physical abilities and fitness tests.
-- **Recovery Status**: Monitor player recovery status, including sleep, nutrition, and wellness.
+- **GPS exploration**: Explore GPS-based performance metrics and analysis.
+- **Physical capabilities**: Analyze players' physical abilities and fitness tests.
+- **Recovery status**: Monitor player recovery status, including sleep, nutrition, and wellness.
 
 
 ## Features

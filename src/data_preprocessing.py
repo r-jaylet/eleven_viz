@@ -6,7 +6,8 @@ import streamlit as st
 
 
 def load_gps(
-    file_path: str = "data/CFC GPS Data.csv", encoding: str = "ISO-8859-1"
+    file_path: str = "data/players_data/marc_cucurella/CFC GPS Data.csv",
+    encoding: str = "ISO-8859-1",
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Load and preprocess GPS tracking data for training and matches.
@@ -56,7 +57,7 @@ def load_gps(
 
 
 def load_physical_capabilities(
-    file_path: str = "data/CFC Physical Capability Data.csv",
+    file_path: str = "data/players_data/marc_cucurella/CFC Physical Capability Data.csv",
 ) -> pd.DataFrame:
     """
     Load and preprocess physical capabilities assessment data.
@@ -79,7 +80,7 @@ def load_physical_capabilities(
 
 
 def load_recovery_status(
-    file_path: str = "data/CFC Recovery status Data.csv",
+    file_path: str = "data/players_data/marc_cucurella/CFC Recovery status Data.csv",
 ) -> pd.DataFrame:
     """
     Load and preprocess player recovery status data.

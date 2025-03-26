@@ -1,8 +1,10 @@
+import json
+import os
+
 import streamlit as st
 
 from pages import gps_exploration, physical_capabilities, recovery_status
 
-# Set page configuration
 st.set_page_config(
     page_title="FC Performance Insights",
     page_icon="⚽",
@@ -10,43 +12,87 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Define available players
-PLAYERS = {
-    "Marc Cucurella": "images/cucurella.jpeg",
+
+def load_players():
+    with open("data/players.json", "r") as f:
+        player_data = json.load(f)
+    return player_data["players"]
+
+
+players_data = load_players()
+
+# Create mapping from player names to IDs
+player_names_to_ids = {
+    player_info["name"]: player_id
+    for player_id, player_info in players_data.items()
+}
+player_ids_to_names = {
+    player_id: player_info["name"]
+    for player_id, player_info in players_data.items()
 }
 
 # Initialize session state for selected player
 if "selected_player" not in st.session_state:
-    st.session_state.selected_player = "Marc Cucurella"
+    st.session_state.selected_player = list(player_names_to_ids.keys())[0]
+    st.session_state.selected_player_id = player_names_to_ids[
+        st.session_state.selected_player
+    ]
 
 
-# Define sidebar function
 def create_sidebar():
     with st.sidebar:
         st.title("FC Performance Insights")
         st.sidebar.image("images/chelsea.png", width=300)
-        st.sidebar.image("images/logo-eleven-vert.png", width=300)
+        st.sidebar.image("images/logo-eleven.png", width=300)
 
-        # Navigation
         st.subheader("Navigation")
         page = st.radio(
             "Go to:",
             ["Home", "GPS", "Physical Capabilities", "Recovery Status"],
         )
 
-        # Player selection
         st.subheader("Player Selection")
         selected_player = st.selectbox(
             "Choose a player:",
-            options=list(PLAYERS.keys()),
-            index=list(PLAYERS.keys()).index(st.session_state.selected_player),
+            options=list(player_names_to_ids.keys()),
+            index=list(player_names_to_ids.keys()).index(
+                st.session_state.selected_player
+            ),
         )
 
-        # Update session state
         st.session_state.selected_player = selected_player
-        st.image(PLAYERS[st.session_state.selected_player], width=300)
+        st.session_state.selected_player_id = player_names_to_ids[
+            selected_player
+        ]
 
-        # FAQ Section (collapsed by default)
+        # Load player image
+        player_image_path = f"data/players_data/{st.session_state.selected_player_id}/picture_id.jpeg"
+        if os.path.exists(player_image_path):
+            st.image(player_image_path, width=300)
+        else:
+            st.warning("Player image not available")
+
+        # Display player info
+        player_info = players_data[st.session_state.selected_player_id]
+        st.markdown(
+            f"""
+            <div style="
+                width: 290px;
+                padding: 10px; 
+                border-radius: 10px; 
+                display: inline-block;
+                border: 1px solid white;
+            ">
+                <b>Nationality:</b> {player_info['nationality']}<br>
+                <b>Age:</b> {player_info['age']}<br>
+                <b>Position:</b> {player_info['position']}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
         with st.expander("📚 FAQ"):
             st.markdown(
                 """
@@ -61,16 +107,17 @@ def create_sidebar():
                 """
             )
 
-        # Footer
         st.markdown("---")
         st.caption("© 2025 FC Performance Insights")
 
     return page
 
 
-# Main app content
+def get_player_data_path(player_id):
+    return f"data/players_data/{player_id}"
+
+
 def main():
-    # Apply custom CSS
     st.markdown(
         """
         <style>
@@ -99,10 +146,13 @@ def main():
         unsafe_allow_html=True,
     )
 
-    # Create sidebar and get selected page
     page = create_sidebar()
 
-    # Display content based on selected page
+    # Get current player data path
+    player_data_path = get_player_data_path(
+        st.session_state.selected_player_id
+    )
+
     if page == "Home":
         st.title("⚽ FC Performance Insights")
 
@@ -110,11 +160,11 @@ def main():
             """
             ## Welcome to the FC Performance Insights Platform!
             
-            ### CFCInsights
+            ### 11CFCInsights
             
             This comprehensive platform offers elite football players and coaches a cutting-edge **Physical Performance Interface** that transforms how teams monitor and enhance player development.
             
-            Designed with both clarity and depth, CFCInsights combines technical sophistication with intuitive visualization to deliver actionable insights directly to your fingertips.
+            Designed with both clarity and depth, 11CFCInsights combines technical sophistication with intuitive visualization to deliver actionable insights directly to your fingertips.
             """
         )
 
@@ -156,6 +206,5 @@ def main():
         recovery_status.show()
 
 
-# Run the app
 if __name__ == "__main__":
     main()
