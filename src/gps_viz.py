@@ -1,378 +1,741 @@
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import seaborn as sns
+from plotly.graph_objects import Figure
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 
 
-def plot_daily_distance(df_active):
-    """Plot daily distance covered with match day highlighting"""
-    fig = px.line(
-        df_active,
-        x="date",
-        y="distance",
-        markers=True,
-        color="is_match_day",
-        color_discrete_map={True: "red", False: "blue"},
-        title="Daily Distance Covered",
-        labels={
-            "distance": "Distance (m)",
-            "date": "Date",
-            "is_match_day": "Match Day",
-        },
-        hover_data=["md_plus_code", "md_minus_code"],
+def average_distances_by_recovery(
+    matches_list: List[List[Union[str, float, int, None]]],
+) -> Dict[Union[int, str], float]:
+    """
+    Calculate average distance covered based on recovery days.
+
+    Args:
+        matches_list: List of matches where each match contains:
+                     [opposition_code, date, distance, md_plus_code]
+
+    Returns:
+        Dictionary mapping recovery days to average distance covered
+    """
+    distance_by_recovery: Dict[Union[int, str], float] = {}
+    count_by_recovery: Dict[Union[int, str], int] = {}
+
+    for match in matches_list:
+        _, _, distance, md_plus_code = match
+
+        if md_plus_code is not None:
+            if md_plus_code not in distance_by_recovery:
+                distance_by_recovery[md_plus_code] = 0.0
+                count_by_recovery[md_plus_code] = 0
+
+            distance_by_recovery[md_plus_code] += distance
+            count_by_recovery[md_plus_code] += 1
+
+    average_by_recovery = {
+        md: distance_by_recovery[md] / count_by_recovery[md]
+        for md in distance_by_recovery
+    }
+
+    return average_by_recovery
+
+
+def cluster_performance(
+    df_trainings: pd.DataFrame,
+    df_matches: pd.DataFrame,
+    features: List[str],
+    n_clusters: int = 3,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Apply K-Means clustering to classify performance levels in training and match data.
+
+    Args:
+        df_trainings: DataFrame containing training data
+        df_matches: DataFrame containing match data
+        features: List of feature column names to use for clustering
+        n_clusters: Number of clusters to create (default: 3)
+
+    Returns:
+        Tuple of DataFrames (training_data, match_data) with assigned cluster labels
+    """
+    df_training_copy = df_trainings.copy()
+    df_matches_copy = df_matches.copy()
+
+    scaler = StandardScaler()
+    df_training_scaled = scaler.fit_transform(df_training_copy[features])
+
+    # Apply K-Means clustering on training data
+    kmeans_trainings = KMeans(
+        n_clusters=n_clusters, random_state=42, n_init=10
+    )
+    df_training_copy["cluster"] = kmeans_trainings.fit_predict(
+        df_training_scaled
     )
 
-    # Add average line
-    avg_distance = df_active["distance"].mean()
-    fig.add_hline(
-        y=avg_distance,
-        line_dash="dash",
-        line_color="green",
-        annotation_text=f"Avg: {avg_distance:.0f}m",
-        annotation_position="bottom right",
+    # Sort clusters by distance and assign labels
+    cluster_distances_trainings = df_training_copy.groupby("cluster")[
+        "distance"
+    ].mean()
+    sorted_clusters_trainings = cluster_distances_trainings.sort_values(
+        ascending=False
+    ).index
+    cluster_labels_trainings = {
+        sorted_clusters_trainings[0]: "Better performances",
+        sorted_clusters_trainings[1]: "Usual performances",
+        sorted_clusters_trainings[2]: "Lower performances",
+    }
+    df_training_copy["cluster_label"] = df_training_copy["cluster"].map(
+        cluster_labels_trainings
     )
 
-    return fig
+    # Apply similar process to match data
+    df_matches_scaled = scaler.transform(df_matches_copy[features])
+
+    kmeans_matches = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    df_matches_copy["cluster"] = kmeans_matches.fit_predict(df_matches_scaled)
+
+    cluster_distances_matches = df_matches_copy.groupby("cluster")[
+        "distance"
+    ].mean()
+    sorted_clusters_matches = cluster_distances_matches.sort_values(
+        ascending=False
+    ).index
+    cluster_labels_matches = {
+        sorted_clusters_matches[0]: "Better performances",
+        sorted_clusters_matches[1]: "Usual performances",
+        sorted_clusters_matches[2]: "Lower performances",
+    }
+    df_matches_copy["cluster_label"] = df_matches_copy["cluster"].map(
+        cluster_labels_matches
+    )
+
+    return df_training_copy, df_matches_copy
 
 
-def plot_distance_by_matchday(df_active):
-    """Plot average distance by match day code"""
-    md_distance = (
-        df_active.groupby(["md_plus_code", "md_minus_code"])["distance"]
+def convert_hms_to_minutes(hms: str) -> float:
+    """
+    Convert a time string in 'hh:mm:ss' format to minutes.
+
+    Args:
+        hms: Time string in 'hh:mm:ss' format
+
+    Returns:
+        Equivalent time in minutes (0 if input is invalid)
+    """
+    if isinstance(hms, str) and len(hms.split(":")) == 3:
+        try:
+            h, m, s = map(int, hms.split(":"))
+            return h * 60 + m + s / 60
+        except ValueError:
+            return 0
+    return 0
+
+
+def hms_to_seconds(hms: str) -> int:
+    """
+    Convert a duration in HH:MM:SS format to total seconds.
+
+    Args:
+        hms: A string representing time in the format 'HH:MM:SS'
+
+    Returns:
+        Total number of seconds as an integer
+
+    Raises:
+        ValueError: If the time format is invalid
+    """
+    try:
+        h, m, s = map(int, hms.split(":"))
+        return h * 3600 + m * 60 + s
+    except ValueError:
+        raise ValueError("Invalid time format. Expected 'HH:MM:SS'.")
+
+
+def general_kpis(df_filtered: pd.DataFrame) -> Dict[str, Any]:
+    """
+    Compute general Key Performance Indicators from session data.
+
+    Args:
+        df_filtered: DataFrame containing session data with metrics
+
+    Returns:
+        Dictionary containing calculated KPIs
+    """
+    time_columns = [
+        "hr_zone_1_hms",
+        "hr_zone_2_hms",
+        "hr_zone_3_hms",
+        "hr_zone_4_hms",
+        "hr_zone_5_hms",
+    ]
+    df_filtered.loc[:, time_columns] = (
+        df_filtered[time_columns].astype(str).applymap(hms_to_seconds)
+    )
+
+    total_distance_km = df_filtered["distance"].sum() * 10e-3
+    average_peak_speed = df_filtered["peak_speed"].mean()
+    average_accel_decel = (
+        df_filtered[
+            [
+                "accel_decel_over_2_5",
+                "accel_decel_over_3_5",
+                "accel_decel_over_4_5",
+            ]
+        ]
         .mean()
-        .reset_index()
+        .mean()
     )
-    md_distance["md_code"] = md_distance.apply(
-        lambda x: (
-            f"MD{x['md_plus_code']}"
-            if x["md_plus_code"] > 0
-            else (
-                "MD" if x["md_plus_code"] == 0 else f"MD{x['md_minus_code']}"
+    average_time_in_zones = df_filtered[time_columns].mean()
+    number_of_sessions = df_filtered.shape[0]
+
+    kpis = {
+        "total_distance_km": total_distance_km,
+        "average_peak_speed": average_peak_speed,
+        "average_accel_decel": average_accel_decel,
+        "average_time_in_zones": average_time_in_zones,
+        "number_of_sessions": number_of_sessions,
+    }
+
+    return kpis
+
+
+def get_duration_matches(
+    df: pd.DataFrame,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, Dict[str, pd.DataFrame]]:
+    """
+    Split the DataFrame into groups based on match duration.
+
+    Args:
+        df: DataFrame containing a 'day_duration' column representing match duration in minutes
+
+    Returns:
+        Tuple containing:
+        - df_short: Matches with duration < 30 minutes
+        - df_medium: Matches with duration between 30 and 60 minutes
+        - df_long: Matches with duration > 60 minutes
+        - df_groups: Dictionary mapping duration categories to DataFrames
+    """
+    df_short = df[df["day_duration"] < 30]
+    df_medium = df[(df["day_duration"] >= 30) & (df["day_duration"] <= 60)]
+    df_long = df[df["day_duration"] > 60]
+
+    df_groups = {"<30min": df_short, "30-60min": df_medium, ">60min": df_long}
+
+    return df_short, df_medium, df_long, df_groups
+
+
+def list_matches_with_recovery(df: pd.DataFrame) -> List[List]:
+    """
+    Create list of matches with opposition, date, distance, and recovery details.
+
+    Args:
+        df: DataFrame containing match data columns
+
+    Returns:
+        List of lists with [opposition_code, date, distance, md_plus_code]
+    """
+    df_matches = df[df["opposition_code"].notna()].copy()
+    matches_list = df_matches[
+        ["opposition_code", "date", "distance"]
+    ].values.tolist()
+
+    for match in matches_list:
+        opposition_code, date, distance = match
+        previous_day = df[df["date"] == date - pd.Timedelta(days=1)]
+        md_plus_code = (
+            previous_day["md_plus_code"].values[0]
+            if not previous_day.empty
+            else None
+        )
+        match.append(md_plus_code)
+
+    return matches_list
+
+
+def plot_average_distances_histogram_plotly(df: pd.DataFrame) -> Figure:
+    """
+    Plot histogram of average distances and match counts by recovery days.
+
+    Args:
+        df: DataFrame containing match data
+
+    Returns:
+        Plotly figure with grouped bar chart (dual y-axes)
+    """
+    matches_list = list_matches_with_recovery(df)
+    average_by_recovery = average_distances_by_recovery(matches_list)
+
+    count_by_recovery = {}
+    for match in matches_list:
+        _, _, _, md_plus_code = match
+        if md_plus_code is not None:
+            count_by_recovery[md_plus_code] = (
+                count_by_recovery.get(md_plus_code, 0) + 1
             )
-        ),
-        axis=1,
-    )
 
-    # Sort by match day sequence
-    md_order = sorted(
-        md_distance["md_code"].unique(),
-        key=lambda x: (
-            int(float(x[2:]))
-            if x != "MD" and len(x) > 2
-            else (0 if x == "MD" else -100)
-        ),
-    )
-
-    fig = px.bar(
-        md_distance,
-        x="md_code",
-        y="distance",
-        title="Average Distance by Match Day Code",
-        labels={
-            "distance": "Average Distance (m)",
-            "md_code": "Match Day Code",
-        },
-        category_orders={"md_code": md_order},
-        color="distance",
-        color_continuous_scale="Viridis",
-    )
-
-    return fig
-
-
-def plot_high_speed_distance(df_active):
-    """Plot high-speed running distances by day as stacked bar chart"""
-    high_speed_df = df_active.copy()
-    high_speed_df["date_str"] = high_speed_df["date"].dt.strftime("%d %b")
-
-    fig = go.Figure()
-
-    # Add traces for each speed threshold
-    fig.add_trace(
-        go.Bar(
-            x=high_speed_df["date_str"],
-            y=high_speed_df["distance_over_21"]
-            - high_speed_df["distance_over_24"],
-            name="21-24 km/h",
-            marker_color="#A6E7E4",
-        )
-    )
-
-    fig.add_trace(
-        go.Bar(
-            x=high_speed_df["date_str"],
-            y=high_speed_df["distance_over_24"]
-            - high_speed_df["distance_over_27"],
-            name="24-27 km/h",
-            marker_color="#5ABCB9",
-        )
-    )
-
-    fig.add_trace(
-        go.Bar(
-            x=high_speed_df["date_str"],
-            y=high_speed_df["distance_over_27"],
-            name=">27 km/h",
-            marker_color="#007A87",
-        )
-    )
-
-    # Add match day markers
-    for i, row in high_speed_df[high_speed_df["is_match_day"]].iterrows():
-        fig.add_annotation(
-            x=row["date_str"],
-            y=row["distance_over_21"] + 50,  # Add some padding
-            text="Match",
-            showarrow=True,
-            arrowhead=2,
-            arrowsize=1,
-            arrowwidth=1,
-            arrowcolor="red",
-        )
-
-    # Update layout
-    fig.update_layout(
-        title="High-Speed Running Distances by Day",
-        xaxis_title="Date",
-        yaxis_title="Distance (m)",
-        barmode="stack",
-        hovermode="x unified",
-    )
-
-    return fig
-
-
-def plot_speed_percentage(df_active):
-    """Plot high-speed running as percentage of total distance"""
-    speed_pct_df = df_active.copy()
-    speed_pct_df["pct_21_plus"] = (
-        speed_pct_df["distance_over_21"] / speed_pct_df["distance"]
-    ) * 100
-    speed_pct_df["pct_24_plus"] = (
-        speed_pct_df["distance_over_24"] / speed_pct_df["distance"]
-    ) * 100
-    speed_pct_df["pct_27_plus"] = (
-        speed_pct_df["distance_over_27"] / speed_pct_df["distance"]
-    ) * 100
-
-    fig = px.line(
-        speed_pct_df,
-        x="date",
-        y=["pct_21_plus", "pct_24_plus", "pct_27_plus"],
-        markers=True,
-        title="High-Speed Running as % of Total Distance",
-        labels={
-            "date": "Date",
-            "value": "Percentage of Total Distance",
-            "variable": "Speed Threshold",
-        },
-    )
-
-    # Rename legend items
-    fig.update_traces(name=">21 km/h", selector=dict(name="pct_21_plus"))
-    fig.update_traces(name=">24 km/h", selector=dict(name="pct_24_plus"))
-    fig.update_traces(name=">27 km/h", selector=dict(name="pct_27_plus"))
-
-    return fig
-
-
-def plot_accel_decel(df_active):
-    """Plot acceleration/deceleration events by day"""
-    fig = px.line(
-        df_active,
-        x="date",
-        y=[
-            "accel_decel_over_2_5",
-            "accel_decel_over_3_5",
-            "accel_decel_over_4_5",
-        ],
-        markers=True,
-        title="Acceleration/Deceleration Events by Day",
-        labels={
-            "date": "Date",
-            "value": "Number of Events",
-            "variable": "Acceleration/Deceleration",
-        },
-    )
-
-    # Rename legend items
-    fig.update_traces(
-        name=">2.5 m/s²", selector=dict(name="accel_decel_over_2_5")
-    )
-    fig.update_traces(
-        name=">3.5 m/s²", selector=dict(name="accel_decel_over_3_5")
-    )
-    fig.update_traces(
-        name=">4.5 m/s²", selector=dict(name="accel_decel_over_4_5")
-    )
-
-    return fig
-
-
-def plot_peak_speed(df_active):
-    """Plot peak speed by day"""
-    fig = px.line(
-        df_active,
-        x="date",
-        y="peak_speed",
-        markers=True,
-        color="is_match_day",
-        color_discrete_map={True: "red", False: "blue"},
-        title="Peak Speed by Day",
-        labels={
-            "peak_speed": "Peak Speed (km/h)",
-            "date": "Date",
-            "is_match_day": "Match Day",
-        },
-    )
-
-    # Add average line
-    avg_peak = df_active["peak_speed"].mean()
-    fig.add_hline(
-        y=avg_peak,
-        line_dash="dash",
-        line_color="green",
-        annotation_text=f"Avg: {avg_peak:.1f} km/h",
-        annotation_position="bottom right",
-    )
-
-    return fig
-
-
-def plot_speed_zones(df_active):
-    """Plot speed zones distribution as pie chart"""
-    speed_zones = pd.DataFrame(
+    df_plot = pd.DataFrame(
         {
-            "Zone": ["<21 km/h", "21-24 km/h", "24-27 km/h", ">27 km/h"],
-            "Average Distance": [
-                df_active["distance"].mean()
-                - df_active["distance_over_21"].mean(),
-                df_active["distance_over_21"].mean()
-                - df_active["distance_over_24"].mean(),
-                df_active["distance_over_24"].mean()
-                - df_active["distance_over_27"].mean(),
-                df_active["distance_over_27"].mean(),
+            "Recovery Days": list(average_by_recovery.keys()),
+            "Average Distance": list(average_by_recovery.values()),
+            "Number of Matches": [
+                count_by_recovery[k] for k in average_by_recovery.keys()
             ],
         }
     )
 
-    fig = px.pie(
-        speed_zones,
-        values="Average Distance",
-        names="Zone",
-        title="Average Distance Distribution by Speed Zone",
-        color_discrete_sequence=px.colors.sequential.Viridis,
+    max_matches = max(df_plot["Number of Matches"])
+    y2_max = max_matches * 1.7
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Bar(
+            x=df_plot["Recovery Days"],
+            y=df_plot["Average Distance"],
+            name="Average Distance (km)",
+            text=df_plot["Average Distance"].round(1),
+            textposition="outside",
+            marker_color="royalblue",
+            yaxis="y1",
+        )
     )
 
-    fig.update_traces(textposition="inside", textinfo="percent+label")
+    fig.add_trace(
+        go.Bar(
+            x=df_plot["Recovery Days"],
+            y=df_plot["Number of Matches"],
+            name="Number of Matches",
+            text=df_plot["Number of Matches"],
+            textposition="outside",
+            marker_color="orange",
+            opacity=0.7,
+            yaxis="y2",
+        )
+    )
+
+    fig.update_layout(
+        title="Average Distance Traveled and Number of Matches by Recovery Days",
+        xaxis_title="Number of Recovery Days",
+        yaxis=dict(
+            title="Average Distance Traveled (km)", side="left", showgrid=False
+        ),
+        yaxis2=dict(
+            title="Number of Matches",
+            side="right",
+            overlaying="y",
+            showgrid=False,
+            range=[0, y2_max],
+        ),
+        barmode="group",
+        legend=dict(
+            orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5
+        ),
+    )
 
     return fig
 
 
-def plot_heart_rate_zones(df_active):
-    """Plot heart rate zone distribution by day"""
-    hr_cols = [
-        "hr_zone_1_hms_seconds",
-        "hr_zone_2_hms_seconds",
-        "hr_zone_3_hms_seconds",
-        "hr_zone_4_hms_seconds",
-        "hr_zone_5_hms_seconds",
-    ]
+def plot_cluster(df: pd.DataFrame, x: str, y: str) -> plt.Figure:
+    """
+    Visualize the clusters of matches based on two given features.
 
-    hr_active = df_active.copy()
-    hr_active["total_hr_seconds"] = hr_active[hr_cols].sum(axis=1)
+    Args:
+        df: DataFrame containing match data with 'cluster_label' column
+        x: Feature to plot on x-axis (e.g., 'distance')
+        y: Feature to plot on y-axis (e.g., 'peak_speed')
 
-    # Calculate percentages
-    for i, col in enumerate(hr_cols, 1):
-        hr_active[f"hr_zone_{i}_pct"] = (
-            hr_active[col] / hr_active["total_hr_seconds"]
-        ) * 100
+    Returns:
+        Matplotlib figure with scatter plot
+    """
+    plt.figure(figsize=(8, 6))
+    sns.scatterplot(
+        x=df[x], y=df[y], hue=df["cluster_label"], palette="Set1", s=100
+    )
+    plt.title("Clustering of Matches based on Distance and Peak Speed")
+    plt.xlabel(x)
+    plt.ylabel(y)
+    plt.legend(title="Cluster")
+    return plt
 
-    # Create stacked bar chart for heart rate zones
-    hr_long = pd.melt(
-        hr_active,
-        id_vars=["date"],
-        value_vars=[f"hr_zone_{i}_pct" for i in range(1, 6)],
-        var_name="zone",
-        value_name="percentage",
+
+def plot_distance_distribution_by_duration(
+    df_filtered: pd.DataFrame,
+) -> Figure:
+    """
+    Plot histogram of distance distribution based on match duration.
+
+    Args:
+        df_filtered: DataFrame containing match data with 'distance' and duration
+
+    Returns:
+        Plotly figure with histogram
+    """
+    df_short, df_medium, df_long, _ = get_duration_matches(df_filtered.copy())
+
+    df_short["duration_group"] = "<30min"
+    df_medium["duration_group"] = "30-60min"
+    df_long["duration_group"] = ">60min"
+    df_combined = pd.concat([df_short, df_medium, df_long], ignore_index=True)
+
+    color_map = {
+        "<30min": "rgba(255, 0, 0, 0.8)",  # Red for <30min
+        "30-60min": "rgba(0, 255, 0, 0.6)",  # Green for 30-60min
+        ">60min": "rgba(0, 0, 255, 0.2)",  # Blue for >60min
+    }
+
+    fig = px.histogram(
+        df_combined,
+        x="distance",
+        color="duration_group",
+        barmode="overlay",
+        title="Distance Distribution by Match Duration",
+        color_discrete_map=color_map,
     )
 
-    hr_long["zone"] = hr_long["zone"].str.replace("_pct", "")
-    hr_long["zone_name"] = hr_long["zone"].map(
-        {
-            "hr_zone_1": "Zone 1 (Very Light)",
-            "hr_zone_2": "Zone 2 (Light)",
-            "hr_zone_3": "Zone 3 (Moderate)",
-            "hr_zone_4": "Zone 4 (Hard)",
-            "hr_zone_5": "Zone 5 (Maximum)",
-        }
-    )
+    return fig
 
-    hr_long["date_str"] = pd.to_datetime(hr_long["date"]).dt.strftime("%d %b")
 
-    # Filter out days with no HR data
-    hr_long = hr_long[hr_long["percentage"] > 0]
+def plot_player_state(
+    df: pd.DataFrame,
+    season: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> Optional[Figure]:
+    """
+    Display stacked bar chart of player state over a period or season.
 
-    if hr_long.empty:
+    Args:
+        df: DataFrame containing player data
+        season: Season name to filter by (e.g., '2022-2023')
+        start_date: Start date in 'YYYY-MM-DD' format
+        end_date: End date in 'YYYY-MM-DD' format
+
+    Returns:
+        Plotly figure with stacked bar chart or None if no data
+    """
+    # Filter by season if specified
+    if season:
+        df_filtered = df[df["season"] == season]
+    elif start_date and end_date:
+        df_filtered = df[(df["date"] >= start_date) & (df["date"] <= end_date)]
+    else:
+        print("Please specify a valid season or date range.")
+        return None
+
+    if df_filtered.empty:
+        print("No data available for the specified period.")
         return None
 
     fig = px.bar(
-        hr_long,
-        x="date_str",
-        y="percentage",
-        color="zone_name",
-        title="Heart Rate Zone Distribution by Day",
-        labels={
-            "percentage": "Time Percentage",
-            "date_str": "Date",
-            "zone_name": "Heart Rate Zone",
+        df_filtered,
+        x="date",
+        color="cluster_label",
+        title=f"Player State Distribution {f'- {season}' if season else ''}",
+        labels={"cluster_label": "Player State", "date": "Date"},
+        category_orders={
+            "cluster_label": [
+                "Better performances",
+                "Usual performances",
+                "Lower performances",
+            ]
         },
-        color_discrete_sequence=[
-            "#91cf60",
-            "#d9ef8b",
-            "#fee08b",
-            "#fc8d59",
-            "#d73027",
-        ],
+        barmode="stack",
     )
 
-    fig.update_layout(barmode="stack")
+    fig.update_layout(
+        xaxis_title="Date", yaxis_title="Number of Events", showlegend=True
+    )
+
     return fig
 
 
-def plot_weekly_distance(df):
-    """Plot weekly total distance"""
-    weekly_data = (
-        df.groupby("week_num")
-        .agg(
-            {
-                "distance": "sum",
-                "is_match_day": "sum",  # Count of match days per week
-            }
+def plot_radar_chart(df: pd.DataFrame, date_str: str) -> Optional[Figure]:
+    """
+    Display radar chart with metrics for a given date.
+
+    Args:
+        df: DataFrame containing performance data
+        date_str: Date in format "DD/MM/YYYY"
+
+    Returns:
+        Plotly figure with radar chart or None if no data
+    """
+    date_obj = pd.to_datetime(date_str, format="%d/%m/%Y")
+
+    # Filter the data for the selected date
+    df_filtered = df[df["date"] == date_obj].copy()
+    if df_filtered.empty:
+        print(f"No data found for the date {date_str}")
+        return None
+
+    metrics = [
+        "distance",
+        "distance_over_21",
+        "distance_over_24",
+        "distance_over_27",
+        "accel_decel_over_2_5",
+        "accel_decel_over_3_5",
+        "accel_decel_over_4_5",
+        "day_duration",
+        "peak_speed",
+    ]
+
+    hr_metrics = [
+        "hr_zone_1_hms",
+        "hr_zone_2_hms",
+        "hr_zone_3_hms",
+        "hr_zone_4_hms",
+        "hr_zone_5_hms",
+    ]
+    for col in hr_metrics:
+        df_filtered[col] = df_filtered[col].apply(convert_hms_to_minutes)
+
+    for col in hr_metrics:
+        df[col] = df[col].apply(convert_hms_to_minutes)
+
+    metrics += hr_metrics
+    df[metrics] = df[metrics].apply(pd.to_numeric, errors="coerce")
+
+    # Determine the scaling factor (max value) for each metric in the DataFrame
+    scale_factors = {metric: df[metric].max() for metric in metrics}
+    df_filtered[metrics] = df_filtered[metrics].fillna(0)
+
+    # Normalize the values
+    scaled_values = [
+        (
+            (df_filtered.iloc[0][metric] / scale_factors[metric])
+            if scale_factors[metric] > 0
+            else 0
         )
-        .reset_index()
+        for metric in metrics
+    ]
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatterpolar(
+            r=scaled_values,
+            theta=metrics,
+            fill="toself",
+            name=f"Data from {date_str}",
+            text=[
+                f"{int(round(v))}" if metric not in hr_metrics else f"{v:.1f}"
+                for metric, v in zip(
+                    metrics, df_filtered.iloc[0][metrics].values
+                )
+            ],
+            textposition="top center",
+            mode="lines+text",
+            textfont=dict(size=10),
+        )
     )
 
-    # Add week starting date
-    week_dates = df.groupby("week_num")["date"].min().reset_index()
-    weekly_data = pd.merge(weekly_data, week_dates, on="week_num")
-    weekly_data["week_start"] = weekly_data["date"].dt.strftime("%d %b")
-
-    fig = px.bar(
-        weekly_data,
-        x="week_num",
-        y="distance",
-        title="Weekly Total Distance",
-        labels={"distance": "Total Distance (m)", "week_num": "Week"},
-        text=weekly_data["week_start"],
-        color="is_match_day",
-        color_continuous_scale="Reds",
-        hover_data=["is_match_day"],
-    )
-
-    fig.update_layout(xaxis=dict(tickmode="linear"), hovermode="x")
-    fig.update_traces(
-        textposition="outside",
-        hovertemplate="Week %{x}<br>Start Date: %{text}<br>Total Distance: %{y:.0f}m<br>Matches: %{customdata[0]}",
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(visible=True, showticklabels=False),
+            angularaxis=dict(visible=True),
+        ),
+        title=f"Performance Analysis - {date_str}",
+        showlegend=False,
     )
 
     return fig
+
+
+def stats_vs_match_time(df: pd.DataFrame) -> Tuple[Figure, Figure, Figure]:
+    """
+    Create visualizations showing performance metrics by match duration.
+
+    Args:
+        df: DataFrame containing match data
+
+    Returns:
+        Tuple of three Plotly figures (distance, acceleration, heart rate)
+    """
+
+    def plot_distance_splits(df_groups: Dict[str, pd.DataFrame]) -> Figure:
+        """
+        Plot pie chart for distance splits based on match groups.
+        """
+        fig = go.Figure()
+        annotations = []
+
+        for i, (label, df_group) in enumerate(df_groups.items()):
+            distances_splits = [
+                int(round(df_group["distance_over_21"].mean(), 0)),
+                int(round(df_group["distance_over_24"].mean(), 0)),
+                int(round(df_group["distance_over_27"].mean(), 0)),
+            ]
+
+            fig.add_trace(
+                go.Pie(
+                    labels=[">21 km/h", ">24 km/h", ">27 km/h"],
+                    values=distances_splits,
+                    name=f"Speeds - {label}",
+                    domain={"x": [i * 0.33, (i + 1) * 0.33], "y": [0, 1]},
+                    hole=0.4,
+                    textinfo="value+percent",
+                    insidetextorientation="radial",
+                    marker=dict(line=dict(color="white", width=2)),
+                )
+            )
+
+            annotations.append(
+                dict(
+                    x=(i * 0.33) + 0.16,
+                    y=1.1,
+                    xref="paper",
+                    yref="paper",
+                    text=f"<b>{label}</b>",
+                    showarrow=False,
+                    font=dict(size=18, color="black"),
+                )
+            )
+
+        fig.update_layout(
+            title="High-speed Distance Coverage",
+            showlegend=True,
+            annotations=annotations,
+        )
+        return fig
+
+    def plot_accel_splits(df_groups: Dict[str, pd.DataFrame]) -> Figure:
+        """
+        Plot pie chart for acceleration/deceleration splits based on match groups.
+        """
+        fig = go.Figure()
+        annotations = []
+
+        for i, (label, df_group) in enumerate(df_groups.items()):
+            accel_splits = [
+                int(round(df_group["accel_decel_over_2_5"].mean(), 0)),
+                int(round(df_group["accel_decel_over_3_5"].mean(), 0)),
+                int(round(df_group["accel_decel_over_4_5"].mean(), 0)),
+            ]
+
+            fig.add_trace(
+                go.Pie(
+                    labels=[">2.5 m/s²", ">3.5 m/s²", ">4.5 m/s²"],
+                    values=accel_splits,
+                    name=f"Acceleration/Deceleration - {label}",
+                    domain={"x": [i * 0.33, (i + 1) * 0.33], "y": [0, 1]},
+                    hole=0.4,
+                    textinfo="value+percent",
+                    insidetextorientation="radial",
+                    marker=dict(line=dict(color="white", width=2)),
+                )
+            )
+
+            annotations.append(
+                dict(
+                    x=(i * 0.33) + 0.16,
+                    y=1.1,
+                    xref="paper",
+                    yref="paper",
+                    text=f"<b>{label}</b>",
+                    showarrow=False,
+                    font=dict(size=18, color="black"),
+                )
+            )
+
+        fig.update_layout(
+            title="Acceleration and Deceleration",
+            showlegend=True,
+            annotations=annotations,
+        )
+        return fig
+
+    def plot_hr_zones(df_groups: Dict[str, pd.DataFrame]) -> Figure:
+        """
+        Plot pie chart for heart rate zones based on match groups.
+        """
+        fig = go.Figure()
+        annotations = []
+
+        for i, (label, df_group) in enumerate(df_groups.items()):
+            hr_splits = [
+                int(
+                    round(
+                        df_group["hr_zone_1_hms"]
+                        .map(convert_hms_to_minutes)
+                        .mean(),
+                        0,
+                    )
+                ),
+                int(
+                    round(
+                        df_group["hr_zone_2_hms"]
+                        .map(convert_hms_to_minutes)
+                        .mean(),
+                        0,
+                    )
+                ),
+                int(
+                    round(
+                        df_group["hr_zone_3_hms"]
+                        .map(convert_hms_to_minutes)
+                        .mean(),
+                        0,
+                    )
+                ),
+                int(
+                    round(
+                        df_group["hr_zone_4_hms"]
+                        .map(convert_hms_to_minutes)
+                        .mean(),
+                        0,
+                    )
+                ),
+                int(
+                    round(
+                        df_group["hr_zone_5_hms"]
+                        .map(convert_hms_to_minutes)
+                        .mean(),
+                        0,
+                    )
+                ),
+            ]
+
+            fig.add_trace(
+                go.Pie(
+                    labels=["Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5"],
+                    values=hr_splits,
+                    name=f"HR Zones - {label}",
+                    domain={"x": [i * 0.33, (i + 1) * 0.33], "y": [0, 1]},
+                    hole=0.4,
+                    textinfo="value+percent",
+                    insidetextorientation="radial",
+                    marker=dict(line=dict(color="white", width=2)),
+                )
+            )
+
+            annotations.append(
+                dict(
+                    x=(i * 0.33) + 0.16,
+                    y=1.1,
+                    xref="paper",
+                    yref="paper",
+                    text=f"<b>{label}</b>",
+                    showarrow=False,
+                    font=dict(size=18, color="black"),
+                )
+            )
+
+        fig.update_layout(
+            title="Time Spent in Heart Rate Zones",
+            showlegend=True,
+            annotations=annotations,
+        )
+        return fig
+
+    _, _, _, df_groups = get_duration_matches(df)
+    fig_distance = plot_distance_splits(df_groups)
+    fig_accel = plot_accel_splits(df_groups)
+    fig_hr = plot_hr_zones(df_groups)
+
+    return fig_distance, fig_accel, fig_hr

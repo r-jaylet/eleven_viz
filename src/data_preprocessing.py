@@ -98,6 +98,8 @@ def load_recovery_status(
 
     df = df.sort_values("sessionDate")
 
+    df = df.dropna(subset=["value"])
+
     df["value"] = pd.to_numeric(df["value"], errors="coerce")
 
     # Add temporal grouping columns for analysis
@@ -120,4 +122,16 @@ def load_recovery_status(
         .replace("_baseline_score", "")
     )
 
+    return df
+
+
+def load_priority(path: str, encoding: str = "ISO-8859-1") -> pd.DataFrame:
+    """
+    Loads a CSV file into a Pandas DataFrame.
+
+    :param path: Path to the CSV file.
+    :param encoding: Encoding format for reading the file (default: "ISO-8859-1").
+    :return: DataFrame containing the loaded data.
+    """
+    df = pd.read_csv(path, encoding=encoding)
     return df

@@ -3,7 +3,12 @@ import os
 
 import streamlit as st
 
-from pages import gps_exploration, physical_capabilities, recovery_status
+from pages import (
+    additional_insights,
+    gps_exploration,
+    physical_capabilities,
+    recovery_status,
+)
 
 st.set_page_config(
     page_title="FC Performance Insights",
@@ -48,7 +53,13 @@ def create_sidebar():
         st.subheader("Navigation")
         page = st.radio(
             "Go to:",
-            ["Home", "GPS", "Physical Capabilities", "Recovery Status"],
+            [
+                "Home",
+                "GPS",
+                "Physical Capabilities",
+                "Recovery Status",
+                "Additional Insights",
+            ],
         )
 
         st.subheader("Player Selection")
@@ -204,6 +215,9 @@ def main():
 
     elif page == "Recovery Status":
         recovery_status.show()
+
+    elif page == "Additional Insights":
+        additional_insights.show()
 
 
 if __name__ == "__main__":

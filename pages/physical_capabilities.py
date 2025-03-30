@@ -1,104 +1,123 @@
-from datetime import datetime
-
+import pandas as pd
 import streamlit as st
 
 from src.data_preprocessing import load_physical_capabilities
 from src.physical_viz import (
+    calculate_kpis,
     create_expression_count_chart,
     create_expression_performance_boxplot,
     create_expression_timeline,
     create_monthly_performance_chart,
     create_movement_performance_chart,
     create_movement_pie_chart,
-    create_movement_quality_heatmap,
     create_performance_trend_chart,
+    detailed_stats_by_movement,
+    get_data_for_date,
 )
 
 
-def show():
-    try:
-        df = load_physical_capabilities()
-
-        # Dashboard title
-        st.title("Athletic Performance Analytics Dashboard")
-        st.markdown("### Testing Performance Data Analysis")
-
-        # Create tabs for different visualizations
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(
-            [
-                "Expression Analysis",
-                "Movement Type Distribution",
-                "Performance Trends",
-                "Quality Comparison",
-                "Testing Calendar",
-            ]
+def print_data_for_date(df, date):
+    date_data = get_data_for_date(df, date)
+    if not date_data.empty:
+        st.subheader(f"Performance Data for {date}")
+        st.dataframe(
+            date_data[["movement", "expression", "quality", "benchmarkPct"]],
+            use_container_width=True,
         )
+    else:
+        st.info(f"No data available for {date}")
 
-        # Tab 1: Expression Analysis - Distribution and Performance
-        with tab1:
-            st.subheader("Expression Type Analysis")
 
-            col1, col2 = st.columns(2)
+def show():
+    st.title("Physical Capabilities Analysis")
+    st.markdown("### Athlete Performance Metrics")
 
-            with col1:
-                # Count of tests by expression type
-                fig_expr_count = create_expression_count_chart(df)
-                st.plotly_chart(fig_expr_count, use_container_width=True)
+    try:
+        df = load_physical_capabilities(
+            "data/players_data/marc_cucurella/CFC Physical Capability Data.csv",
+            encoding="utf-8-sig",
+        )
+        df_filtered = df.dropna(subset=["benchmarkPct"])
 
-            with col2:
-                # Performance by expression type (box plot)
-                fig_expr_perf = create_expression_performance_boxplot(df)
-                st.plotly_chart(fig_expr_perf, use_container_width=True)
+        # Display KPIs
+        kpis = calculate_kpis(df_filtered)
 
-            # Scatter plot showing all tests with benchmark values by expression
-            st.subheader("Performance Timeline by Expression Type")
-            fig_expr_timeline = create_expression_timeline(df)
-            st.plotly_chart(fig_expr_timeline, use_container_width=True)
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Tests", kpis["total_entries"])
+        with col2:
+            st.metric("Avg Benchmark", f"{kpis['average_benchmark']:.1f}%")
+        with col3:
+            st.metric(
+                "Best Movement",
+                max(kpis["benchmark_by_movement"].items(), key=lambda x: x[1])[
+                    0
+                ],
+            )
 
-        # Tab 2: Movement Type Distribution and Analysis
-        with tab2:
-            st.subheader("Movement Type Analysis")
+        # Performance trends
+        st.subheader("Performance Trends")
+        tabs = st.tabs(["Timeline", "Monthly", "By Movement", "By Expression"])
 
-            col1, col2 = st.columns(2)
+        with tabs[0]:
+            fig_trend = create_performance_trend_chart(df_filtered)
+            st.plotly_chart(fig_trend, use_container_width=True)
 
-            with col1:
-                # Pie chart of movement types
-                fig_movement_pie = create_movement_pie_chart(df)
-                st.plotly_chart(fig_movement_pie, use_container_width=True)
-
-            with col2:
-                # Heatmap of movement vs quality
-                fig_heatmap = create_movement_quality_heatmap(df)
-                st.plotly_chart(fig_heatmap, use_container_width=True)
-
-            # Movement performance comparison
-            st.subheader("Performance by Movement Type")
-            fig_movement_perf = create_movement_performance_chart(df)
-            st.plotly_chart(fig_movement_perf, use_container_width=True)
-
-        # Tab 3: Performance Trends Over Time
-        with tab3:
-            st.subheader("Performance Trends Over Time")
-
-            # Time series of all benchmark percentiles with hover info
-            fig_time_series = create_performance_trend_chart(df)
-            st.plotly_chart(fig_time_series, use_container_width=True)
-
-            # Monthly average performance
-            fig_monthly = create_monthly_performance_chart(df)
+        with tabs[1]:
+            fig_monthly = create_monthly_performance_chart(df_filtered)
             if fig_monthly:
                 st.plotly_chart(fig_monthly, use_container_width=True)
+            else:
+                st.info("Not enough data for monthly visualization")
 
-        # Tab 4: Quality Comparison
-        with tab4:
-            st.subheader("Movement Quality Analysis")
+        with tabs[2]:
+            fig_movement_perf = create_movement_performance_chart(df_filtered)
+            st.plotly_chart(fig_movement_perf, use_container_width=True)
 
-            # Get unique qualities with benchmark data
-            qualities_with_data = df.dropna(subset=["benchmarkPct"])[
-                "quality"
-            ].unique()
+        with tabs[3]:
+            col1, col2 = st.columns(2)
+            with col1:
+                fig_expr_count = create_expression_count_chart(df_filtered)
+                st.plotly_chart(fig_expr_count, use_container_width=True)
+            with col2:
+                fig_expr_perf = create_expression_performance_boxplot(
+                    df_filtered
+                )
+                st.plotly_chart(fig_expr_perf, use_container_width=True)
 
-    except FileNotFoundError:
-        st.error(
-            "Physical capabilities data file not found. Please ensure 'physical_capabilities.csv' exists in the directory."
+            fig_expr_timeline = create_expression_timeline(df_filtered)
+            st.plotly_chart(fig_expr_timeline, use_container_width=True)
+
+        # Movement analysis
+        st.subheader("Movement Analysis")
+        col1, col2 = st.columns(2)
+        with col1:
+            fig_pie = create_movement_pie_chart(df_filtered)
+            st.plotly_chart(fig_pie, use_container_width=True)
+
+        with col2:
+            st.markdown("##### Movement Breakdown")
+            movements = sorted(df_filtered["movement"].unique())
+            selected_movement = st.selectbox("Select movement", movements)
+            if selected_movement:
+                movement_data = df_filtered[
+                    df_filtered["movement"] == selected_movement
+                ]
+                st.markdown(
+                    f"Average benchmark: **{movement_data['benchmarkPct'].mean():.1f}%**"
+                )
+
+        # Detailed movement stats
+        st.subheader("Detailed Movement Statistics")
+        fig_movement = detailed_stats_by_movement(df_filtered)
+        st.plotly_chart(fig_movement, use_container_width=True)
+
+        # Date specific data
+        st.subheader("Data for Specific Date")
+        selected_date = st.date_input(
+            "Select date", value=pd.to_datetime("2024-01-01")
         )
+        print_data_for_date(df_filtered, date=selected_date)
+
+    except Exception as e:
+        st.error(f"Error loading or processing data: {e}")
