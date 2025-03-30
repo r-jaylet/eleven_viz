@@ -35,11 +35,9 @@ def show():
     try:
         df = load_physical_capabilities(
             "data/players_data/marc_cucurella/CFC Physical Capability Data.csv",
-            encoding="utf-8-sig",
         )
         df_filtered = df.dropna(subset=["benchmarkPct"])
 
-        # Display KPIs
         kpis = calculate_kpis(df_filtered)
 
         col1, col2, col3 = st.columns(3)
@@ -55,7 +53,6 @@ def show():
                 ],
             )
 
-        # Performance trends
         st.subheader("Performance Trends")
         tabs = st.tabs(["Timeline", "Monthly", "By Movement", "By Expression"])
 
@@ -88,7 +85,6 @@ def show():
             fig_expr_timeline = create_expression_timeline(df_filtered)
             st.plotly_chart(fig_expr_timeline, use_container_width=True)
 
-        # Movement analysis
         st.subheader("Movement Analysis")
         col1, col2 = st.columns(2)
         with col1:
@@ -107,12 +103,10 @@ def show():
                     f"Average benchmark: **{movement_data['benchmarkPct'].mean():.1f}%**"
                 )
 
-        # Detailed movement stats
         st.subheader("Detailed Movement Statistics")
         fig_movement = detailed_stats_by_movement(df_filtered)
         st.plotly_chart(fig_movement, use_container_width=True)
 
-        # Date specific data
         st.subheader("Data for Specific Date")
         selected_date = st.date_input(
             "Select date", value=pd.to_datetime("2024-01-01")

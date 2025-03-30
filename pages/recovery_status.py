@@ -5,7 +5,6 @@ from src.recovery_viz import (
     create_category_completeness_bar,
     create_category_completeness_time,
     create_category_composite_time,
-    create_completeness_heatmap,
     create_completeness_radar,
     create_composite_line,
     create_correlation_heatmap,
@@ -43,18 +42,12 @@ def show():
             & (df["sessionDate"].dt.date <= end_date)
         ]
 
-        if date_filtered_df.empty:
-            st.warning("No data available for the selected date range.")
-            return
-
-        # ---- Overview Section ----
         st.header("Recovery Overview")
 
         col1, col2 = st.columns(2)
 
         with col1:
-            # Global Recovery Score
-            fig = plot_global_recovery_score(df, start_date_str, end_date_str)
+            fig = plot_global_recovery_score(df)
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
@@ -78,7 +71,6 @@ def show():
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        # ---- Detailed Analysis Section ----
         st.header("Detailed Analysis")
 
         tab1, tab2, tab3 = st.tabs(
@@ -86,29 +78,22 @@ def show():
         )
 
         with tab1:
-            # Completeness heatmap
+
             completeness_df = date_filtered_df[
                 date_filtered_df["metric_type"] == "completeness"
             ]
-            if not completeness_df.empty:
-                st.subheader("Completeness Heatmap")
-                fig = create_completeness_heatmap(completeness_df)
-                st.plotly_chart(fig, use_container_width=True)
 
             col1, col2 = st.columns(2)
 
             with col1:
-                # Average completeness by category
                 fig = create_category_completeness_bar(completeness_df)
                 st.plotly_chart(fig, use_container_width=True)
 
             with col2:
-                # Daily average completeness
                 fig = create_daily_completeness_line(completeness_df)
                 st.plotly_chart(fig, use_container_width=True)
 
         with tab2:
-            # Composite scores
             composite_df = date_filtered_df[
                 date_filtered_df["metric_type"] == "composite"
             ]
@@ -117,7 +102,6 @@ def show():
                 fig = create_composite_line(composite_df)
                 st.plotly_chart(fig, use_container_width=True)
 
-            # Category-specific analysis
             if not completeness_df.empty:
                 st.subheader("Category Deep Dive")
                 categories = sorted(completeness_df["category"].unique())

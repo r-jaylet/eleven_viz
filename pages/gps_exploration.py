@@ -19,34 +19,13 @@ def show():
 
     try:
         # Load and filter data
-        df = load_gps("data/players_data/marc_cucurella/CFC GPS Data.csv")
+        df, df_active = load_gps(
+            "data/players_data/marc_cucurella/CFC GPS Data.csv"
+        )
         df_filtered = df[df["distance"] > 0]
         df_matches = df_filtered[df_filtered["opposition_code"].notna()]
         df_trainings = df_filtered[df_filtered["opposition_code"].isna()]
 
-        # Date selector
-        min_date = df_filtered["date"].min().date()
-        max_date = df_filtered["date"].max().date()
-
-        col1, col2 = st.columns(2)
-        with col1:
-            start_date = st.date_input(
-                "Start Date", min_date, min_value=min_date, max_value=max_date
-            )
-        with col2:
-            end_date = st.date_input(
-                "End Date", max_date, min_value=min_date, max_value=max_date
-            )
-
-        # Filter data by selected date range
-        date_mask = (df_filtered["date"].dt.date >= start_date) & (
-            df_filtered["date"].dt.date <= end_date
-        )
-        df_filtered_date = df_filtered[date_mask]
-        df_matches_date = df_matches[date_mask]
-        df_trainings_date = df_trainings[date_mask]
-
-        # Main tabs
         overview_tab, match_tab, training_tab, cluster_tab = st.tabs(
             ["Overview", "Matches", "Training", "Performance Clusters"]
         )
@@ -60,7 +39,7 @@ def show():
 
             with col1:
                 st.subheader("Match Statistics")
-                match_kpis = general_kpis(df_matches_date)
+                match_kpis = general_kpis(df_matches)
                 st.metric(
                     "Total Sessions",
                     f"{int(match_kpis['number_of_sessions'])}",
@@ -76,7 +55,7 @@ def show():
 
             with col2:
                 st.subheader("Training Statistics")
-                training_kpis = general_kpis(df_trainings_date)
+                training_kpis = general_kpis(df_trainings)
                 st.metric(
                     "Total Sessions",
                     f"{int(training_kpis['number_of_sessions'])}",
@@ -92,17 +71,16 @@ def show():
 
             st.subheader("Distance Distribution by Duration")
             st.plotly_chart(
-                plot_distance_distribution_by_duration(df_filtered_date),
+                plot_distance_distribution_by_duration(df_filtered),
                 use_container_width=True,
             )
 
             st.subheader("Recovery Analysis")
             st.plotly_chart(
-                plot_average_distances_histogram_plotly(df_filtered_date),
+                plot_average_distances_histogram_plotly(df_filtered),
                 use_container_width=True,
             )
 
-        # Match tab
         with match_tab:
             st.header("Match Performance Analysis")
 
@@ -110,9 +88,7 @@ def show():
             st.subheader("Performance Metrics by Match Duration")
 
             # Get all three figures from stats_vs_match_time
-            fig_distance, fig_accel, fig_hr = stats_vs_match_time(
-                df_matches_date
-            )
+            fig_distance, fig_accel, fig_hr = stats_vs_match_time(df_matches)
 
             metric_option = st.selectbox(
                 "Select metric to display",
@@ -134,13 +110,13 @@ def show():
             st.subheader("Individual Match Analysis")
 
             available_dates = (
-                df_matches_date["date"].dt.strftime("%d/%m/%Y").unique()
+                df_matches["date"].dt.strftime("%d/%m/%Y").unique()
             )
             if len(available_dates) > 0:
                 selected_date = st.selectbox(
                     "Select Match Date", available_dates
                 )
-                radar_chart = plot_radar_chart(df_filtered_date, selected_date)
+                radar_chart = plot_radar_chart(df_filtered, selected_date)
                 if radar_chart:
                     st.plotly_chart(radar_chart, use_container_width=True)
                 else:
@@ -148,18 +124,16 @@ def show():
             else:
                 st.warning("No matches available in the selected date range.")
 
-        # Training tab
         with training_tab:
             st.header("Training Performance Analysis")
 
             # Add training specific visualizations here
             st.subheader("Training Distance Distribution")
             st.plotly_chart(
-                plot_distance_distribution_by_duration(df_trainings_date),
+                plot_distance_distribution_by_duration(df_trainings),
                 use_container_width=True,
             )
 
-        # Cluster tab
         with cluster_tab:
             st.header("Performance Clustering Analysis")
 
@@ -185,13 +159,12 @@ def show():
             # Apply clustering
             df_training_with_clusters, df_matches_with_clusters = (
                 cluster_performance(
-                    df_trainings_date,
-                    df_matches_date,
+                    df_trainings,
+                    df_matches,
                     cluster_features,
                 )
             )
 
-            # Prepare combined DataFrame for player state visualization
             df_matches_with_clusters["type"] = "Match"
             df_training_with_clusters["type"] = "Training"
             df_combined = pd.concat(
@@ -205,7 +178,6 @@ def show():
                 ]
             ).sort_values(by="date")
 
-            # Select features for scatter plot
             col1, col2 = st.columns(2)
             with col1:
                 x_feature = st.selectbox(
@@ -221,10 +193,8 @@ def show():
                 use_container_width=True,
             )
 
-            # Player state over time
             st.subheader("Performance States Over Time")
 
-            # Season selector
             seasons = df_combined["season"].unique()
             selected_season = st.selectbox("Select Season", seasons)
 
@@ -233,7 +203,6 @@ def show():
                 use_container_width=True,
             )
 
-            # Time period selector
             st.subheader("Custom Time Period Analysis")
             col1, col2 = st.columns(2)
             with col1:

@@ -42,6 +42,8 @@ if "selected_player" not in st.session_state:
     st.session_state.selected_player_id = player_names_to_ids[
         st.session_state.selected_player
     ]
+if "selected_season" not in st.session_state:
+    st.session_state.selected_season = "2023/2024"
 
 
 def create_sidebar():
@@ -62,6 +64,16 @@ def create_sidebar():
             ],
         )
 
+        st.subheader("Season Selection")
+        selected_season = st.selectbox(
+            "Choose season:",
+            options=["2023/2024", "2024/2025"],
+            index=["2023/2024", "2024/2025"].index(
+                st.session_state.selected_season
+            ),
+        )
+
+        st.session_state.selected_season = selected_season
         st.subheader("Player Selection")
         selected_player = st.selectbox(
             "Choose a player:",
@@ -197,9 +209,10 @@ def main():
         with metrics_col2:
             st.markdown(
                 """
-                - **Player Biography** - Access comprehensive player information and statistics
-                - **Recovery Tracking** - Analyze sleep quality, nutrition, and wellness indicators
-                - **External Factors** - Evaluate environmental conditions and performance impact
+                - **GPS Data**: Track speed, distance, and movement patterns during matches and training
+                - **Physical Capabilities**: Monitor strength, power, and endurance metrics
+                - **Recovery Status**: Analyze sleep, nutrition, and physiological recovery indicators 
+                - **Additional Insights**: Explore advanced performance analytics and trends
                 """
             )
 

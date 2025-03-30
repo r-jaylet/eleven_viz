@@ -1,6 +1,5 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -340,9 +339,9 @@ def plot_average_distances_histogram_plotly(df: pd.DataFrame) -> Figure:
     return fig
 
 
-def plot_cluster(df: pd.DataFrame, x: str, y: str) -> plt.Figure:
+def plot_cluster(df: pd.DataFrame, x: str, y: str):
     """
-    Visualize the clusters of matches based on two given features.
+    Visualize the clusters of matches based on two given features using Plotly.
 
     Args:
         df: DataFrame containing match data with 'cluster_label' column
@@ -350,17 +349,22 @@ def plot_cluster(df: pd.DataFrame, x: str, y: str) -> plt.Figure:
         y: Feature to plot on y-axis (e.g., 'peak_speed')
 
     Returns:
-        Matplotlib figure with scatter plot
+        Plotly figure with scatter plot
     """
-    plt.figure(figsize=(8, 6))
-    sns.scatterplot(
-        x=df[x], y=df[y], hue=df["cluster_label"], palette="Set1", s=100
+    fig = px.scatter(
+        df,
+        x=x,
+        y=y,
+        color=df["cluster_label"].astype(str),
+        title="Clustering of Matches based on Distance and Peak Speed",
+        labels={x: x, y: y, "cluster_label": "Cluster"},
+        size_max=10,
     )
-    plt.title("Clustering of Matches based on Distance and Peak Speed")
-    plt.xlabel(x)
-    plt.ylabel(y)
-    plt.legend(title="Cluster")
-    return plt
+
+    fig.update_traces(marker=dict(size=10, opacity=0.7))
+    fig.update_layout(legend_title_text="Cluster")
+
+    return fig
 
 
 def plot_distance_distribution_by_duration(

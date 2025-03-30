@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Union
+from typing import Union
 
 import pandas as pd
 import plotly.express as px
@@ -73,7 +73,6 @@ def create_daily_completeness_line(completeness_df: pd.DataFrame) -> go.Figure:
         title="Daily Average Completeness",
         labels={"value": "Average Completeness", "sessionDate": "Date"},
         markers=True,
-        line_shape="spline",
     )
 
     fig.update_layout(
@@ -131,7 +130,6 @@ def create_category_completeness_time(
         title=f"{selected_category} Completeness Over Time",
         labels={"value": "Completeness", "sessionDate": "Date"},
         markers=True,
-        line_shape="spline",
     )
 
     fig.update_layout(
@@ -154,7 +152,6 @@ def create_category_composite_time(
         title=f"{selected_category} Composite Score Over Time",
         labels={"value": "Composite Score", "sessionDate": "Date"},
         markers=True,
-        line_shape="spline",
     )
 
     fig.update_layout(
@@ -288,7 +285,6 @@ def create_completeness_patterns(completeness_df: pd.DataFrame) -> go.Figure:
             "category": "Category",
         },
         markers=True,
-        line_shape="spline",
         color_discrete_sequence=px.colors.qualitative.Bold,
     )
 
@@ -338,7 +334,6 @@ def create_composite_line(composite_df: pd.DataFrame) -> go.Figure:
             "category": "Category",
         },
         markers=True,
-        line_shape="spline",
         color_discrete_sequence=px.colors.qualitative.Bold,
     )
 
@@ -356,8 +351,6 @@ def create_composite_line(composite_df: pd.DataFrame) -> go.Figure:
 
 def plot_global_recovery_score(
     df: pd.DataFrame,
-    start_date: str = "01/01/2023",
-    end_date: str = "31/12/2030",
     window_size: int = 7,
 ) -> go.Figure:
     """
@@ -367,16 +360,6 @@ def plot_global_recovery_score(
     df["sessionDate"] = pd.to_datetime(df["sessionDate"], format="%d/%m/%Y")
 
     df_total = df[df["metric"] == "emboss_baseline_score"].copy()
-    df_total = df_total[
-        (
-            df_total["sessionDate"]
-            >= pd.to_datetime(start_date, format="%d/%m/%Y")
-        )
-        & (
-            df_total["sessionDate"]
-            <= pd.to_datetime(end_date, format="%d/%m/%Y")
-        )
-    ]
     df_total = df_total.sort_values("sessionDate")
 
     df_total["rolling_mean"] = (
