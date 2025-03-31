@@ -5,6 +5,25 @@ import plotly.express as px
 import plotly.graph_objects as go
 import plotly.subplots as sp
 
+# Consistent color palette matching other viz files
+COLORS = {
+    "primary": "#1A237E",  # Dark blue
+    "secondary": "#004D40",  # Dark green
+    "accent1": "#311B92",  # Deep purple
+    "accent2": "#01579B",  # Dark cyan
+    "accent3": "#33691E",  # Dark lime
+    "text": "#212121",  # Almost black text
+}
+QUALITATIVE_PALETTE = [
+    COLORS["primary"],
+    COLORS["secondary"],
+    COLORS["accent1"],
+    COLORS["accent2"],
+    COLORS["accent3"],
+]
+TEMPLATE = "plotly_white"
+COMMON_MARGINS = dict(l=50, r=50, t=80, b=50)
+
 
 def create_completeness_heatmap(completeness_df: pd.DataFrame) -> go.Figure:
     pivot_completeness = completeness_df.pivot_table(
@@ -19,16 +38,22 @@ def create_completeness_heatmap(completeness_df: pd.DataFrame) -> go.Figure:
         labels=dict(x="Category", y="Date", color="Completeness"),
         x=pivot_completeness.columns,
         y=pivot_completeness.index.strftime("%d %b"),
-        color_continuous_scale="viridis",
+        color_continuous_scale=["#E8EAF6", COLORS["primary"]],
         title="Assessment Completeness by Category and Date",
     )
 
     fig.update_layout(
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         height=400,
-        xaxis_title="Assessment Category",
-        yaxis_title="Session Date",
-        template="plotly_white",
-        margin=dict(l=50, r=50, t=80, b=50),
+        xaxis_title={"text": "Assessment Category", "font": {"size": 14}},
+        yaxis_title={"text": "Session Date", "font": {"size": 14}},
+        template=TEMPLATE,
+        margin=COMMON_MARGINS,
+        coloraxis_colorbar=dict(
+            title={"text": "Completeness", "font": {"size": 12}},
+            thicknessmode="pixels",
+            thickness=20,
+        ),
     )
 
     return fig
@@ -48,14 +73,17 @@ def create_category_completeness_bar(
         title="Average Completeness by Category",
         labels={"value": "Average Completeness", "category": "Category"},
         color="category",
-        color_discrete_sequence=px.colors.qualitative.Bold,
+        color_discrete_sequence=QUALITATIVE_PALETTE,
+        template=TEMPLATE,
     )
 
     fig.update_layout(
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "Category", "font": {"size": 14}},
+        yaxis_title={"text": "Average Completeness", "font": {"size": 14}},
         showlegend=False,
-        template="plotly_white",
         height=400,
-        margin=dict(l=50, r=50, t=80, b=50),
+        margin=COMMON_MARGINS,
     )
 
     return fig
@@ -73,12 +101,24 @@ def create_daily_completeness_line(completeness_df: pd.DataFrame) -> go.Figure:
         title="Daily Average Completeness",
         labels={"value": "Average Completeness", "sessionDate": "Date"},
         markers=True,
+        template=TEMPLATE,
+    )
+
+    fig.update_traces(
+        line=dict(color=COLORS["primary"], width=2.5),
+        marker=dict(
+            color=COLORS["primary"],
+            size=8,
+            line=dict(color="#FFFFFF", width=1),
+        ),
     )
 
     fig.update_layout(
-        template="plotly_white",
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "Date", "font": {"size": 14}},
+        yaxis_title={"text": "Average Completeness", "font": {"size": 14}},
         height=400,
-        margin=dict(l=50, r=50, t=80, b=50),
+        margin=COMMON_MARGINS,
     )
 
     return fig
@@ -93,8 +133,8 @@ def create_completeness_radar(latest_completeness: pd.DataFrame) -> go.Figure:
             theta=latest_completeness["category"],
             fill="toself",
             name="Completeness",
-            line_color="#1f77b4",
-            fillcolor="rgba(31, 119, 180, 0.5)",
+            line_color=COLORS["primary"],
+            fillcolor=f"rgba{tuple(int(COLORS['primary'][i:i+2], 16) for i in (1, 3, 5)) + (0.5,)}",
         )
     )
 
@@ -105,15 +145,23 @@ def create_completeness_radar(latest_completeness: pd.DataFrame) -> go.Figure:
                 range=[0, 1],
                 showticklabels=True,
                 ticks="outside",
+                gridcolor="rgba(240, 240, 240, 0.3)",
             ),
             angularaxis=dict(
                 showticklabels=True,
                 ticks="outside",
+                gridcolor="rgba(240, 240, 240, 0.3)",
+                linecolor="rgba(240, 240, 240, 0.3)",
             ),
+            bgcolor="rgba(248, 248, 248, 0.5)",
         ),
-        title="Latest Completeness by Category",
+        title={
+            "text": "Latest Completeness by Category",
+            "font": {"size": 18, "color": COLORS["text"]},
+            "x": 0.5,
+        },
         showlegend=False,
-        template="plotly_white",
+        template=TEMPLATE,
         margin=dict(l=70, r=70, t=80, b=50),
     )
 
@@ -130,13 +178,25 @@ def create_category_completeness_time(
         title=f"{selected_category} Completeness Over Time",
         labels={"value": "Completeness", "sessionDate": "Date"},
         markers=True,
+        template=TEMPLATE,
+    )
+
+    fig.update_traces(
+        line=dict(color=COLORS["primary"], width=2.5),
+        marker=dict(
+            color=COLORS["primary"],
+            size=8,
+            line=dict(color="#FFFFFF", width=1),
+        ),
     )
 
     fig.update_layout(
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "Date", "font": {"size": 14}},
+        yaxis_title={"text": "Completeness", "font": {"size": 14}},
         yaxis_range=[0, 1.1],
-        template="plotly_white",
         height=400,
-        margin=dict(l=50, r=50, t=80, b=50),
+        margin=COMMON_MARGINS,
     )
 
     return fig
@@ -152,12 +212,24 @@ def create_category_composite_time(
         title=f"{selected_category} Composite Score Over Time",
         labels={"value": "Composite Score", "sessionDate": "Date"},
         markers=True,
+        template=TEMPLATE,
+    )
+
+    fig.update_traces(
+        line=dict(color=COLORS["secondary"], width=2.5),
+        marker=dict(
+            color=COLORS["secondary"],
+            size=8,
+            line=dict(color="#FFFFFF", width=1),
+        ),
     )
 
     fig.update_layout(
-        template="plotly_white",
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "Date", "font": {"size": 14}},
+        yaxis_title={"text": "Composite Score", "font": {"size": 14}},
         height=400,
-        margin=dict(l=50, r=50, t=80, b=50),
+        margin=COMMON_MARGINS,
     )
 
     return fig
@@ -172,7 +244,8 @@ def create_category_comparison(pivot_latest: pd.DataFrame) -> go.Figure:
                 x=pivot_latest["category"],
                 y=pivot_latest["completeness"],
                 name="Completeness",
-                marker_color="#1f77b4",
+                marker_color=COLORS["primary"],
+                marker_line=dict(color="#FFFFFF", width=1),
             )
         )
 
@@ -190,19 +263,24 @@ def create_category_comparison(pivot_latest: pd.DataFrame) -> go.Figure:
                     x=pivot_latest["category"],
                     y=normalized_composite,
                     name="Normalized Composite Score",
-                    marker_color="#ff7f0e",
+                    marker_color=COLORS["secondary"],
+                    marker_line=dict(color="#FFFFFF", width=1),
                 )
             )
 
     fig.update_layout(
-        title="Latest Category Metrics Comparison",
-        xaxis_title="Category",
-        yaxis_title="Value",
+        title={
+            "text": "Latest Category Metrics Comparison",
+            "font": {"size": 18, "color": COLORS["text"]},
+            "x": 0.5,
+        },
+        xaxis_title={"text": "Category", "font": {"size": 14}},
+        yaxis_title={"text": "Value", "font": {"size": 14}},
         barmode="group",
-        legend_title="Metric Type",
-        template="plotly_white",
+        legend_title={"text": "Metric Type", "font": {"size": 14}},
+        template=TEMPLATE,
         height=450,
-        margin=dict(l=50, r=50, t=80, b=50),
+        margin=COMMON_MARGINS,
     )
 
     return fig
@@ -221,8 +299,9 @@ def create_daily_tracking(daily_stats: pd.DataFrame) -> go.Figure:
             "mean": "Average Value",
             "count": "Number of Metrics",
         },
-        color_continuous_scale="viridis",
+        color_continuous_scale=["#E8EAF6", COLORS["primary"]],
         size_max=20,
+        template=TEMPLATE,
     )
 
     fig.add_trace(
@@ -230,17 +309,18 @@ def create_daily_tracking(daily_stats: pd.DataFrame) -> go.Figure:
             x=daily_stats["sessionDate"],
             y=daily_stats["mean"],
             mode="lines",
-            line=dict(color="rgba(128, 128, 128, 0.5)", width=1.5),
+            line=dict(color=COLORS["accent1"], width=1.5),
             showlegend=False,
+            hoverinfo="skip",
         )
     )
 
     fig.update_layout(
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "Session Date", "font": {"size": 14}},
+        yaxis_title={"text": "Average Recovery Value", "font": {"size": 14}},
         height=400,
-        xaxis_title="Session Date",
-        yaxis_title="Average Recovery Value",
-        template="plotly_white",
-        margin=dict(l=50, r=50, t=80, b=50),
+        margin=COMMON_MARGINS,
     )
 
     return fig
@@ -257,16 +337,23 @@ def create_date_metrics_bar(
         title=f"All Recovery Metrics for {pd.to_datetime(selected_date).strftime('%d %b %Y')}",
         labels={"value": "Value", "metric": "Metric", "category": "Category"},
         hover_data=["metric_type"],
-        color_discrete_sequence=px.colors.qualitative.Bold,
+        color_discrete_sequence=QUALITATIVE_PALETTE,
+        template=TEMPLATE,
     )
 
     fig.update_layout(
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "", "font": {"size": 14}},
+        yaxis_title={"text": "Value", "font": {"size": 14}},
+        legend_title={"text": "Category", "font": {"size": 14}},
         height=500,
         xaxis_tickangle=-45,
-        xaxis_title="",
         barmode="group",
-        template="plotly_white",
-        margin=dict(l=50, r=50, t=80, b=50),
+        margin=COMMON_MARGINS,
+    )
+
+    fig.update_traces(
+        marker_line=dict(color="#FFFFFF", width=1),
     )
 
     return fig
@@ -285,16 +372,30 @@ def create_completeness_patterns(completeness_df: pd.DataFrame) -> go.Figure:
             "category": "Category",
         },
         markers=True,
-        color_discrete_sequence=px.colors.qualitative.Bold,
+        color_discrete_sequence=QUALITATIVE_PALETTE,
+        template=TEMPLATE,
+    )
+
+    fig.update_traces(
+        marker=dict(size=8, line=dict(width=1, color="#FFFFFF")),
+        line=dict(width=2),
     )
 
     fig.update_layout(
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "Date", "font": {"size": 14}},
+        yaxis_title={"text": "Completeness Value", "font": {"size": 14}},
+        legend_title={"text": "Category", "font": {"size": 14}},
         height=400,
-        xaxis_title="Date",
-        yaxis_title="Completeness Value",
-        legend_title="Category",
-        template="plotly_white",
-        margin=dict(l=50, r=50, t=80, b=50),
+        margin=COMMON_MARGINS,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=12),
+        ),
     )
 
     return fig
@@ -306,16 +407,21 @@ def create_correlation_heatmap(corr_matrix: pd.DataFrame) -> go.Figure:
         labels=dict(x="Metric", y="Metric", color="Correlation"),
         x=corr_matrix.columns,
         y=corr_matrix.index,
-        color_continuous_scale="RdBu_r",
+        color_continuous_scale=[
+            "#E74C3C",
+            "#FFFFFF",
+            COLORS["primary"],
+        ],  # Red to white to blue
         range_color=[-1, 1],
         title="Correlation Between Recovery Metrics",
+        template=TEMPLATE,
     )
 
     fig.update_layout(
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         height=600,
         xaxis_tickangle=-45,
-        template="plotly_white",
-        margin=dict(l=50, r=50, t=80, b=50),
+        margin=COMMON_MARGINS,
     )
 
     return fig
@@ -334,16 +440,30 @@ def create_composite_line(composite_df: pd.DataFrame) -> go.Figure:
             "category": "Category",
         },
         markers=True,
-        color_discrete_sequence=px.colors.qualitative.Bold,
+        color_discrete_sequence=QUALITATIVE_PALETTE,
+        template=TEMPLATE,
+    )
+
+    fig.update_traces(
+        marker=dict(size=8, line=dict(width=1, color="#FFFFFF")),
+        line=dict(width=2),
     )
 
     fig.update_layout(
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "Date", "font": {"size": 14}},
+        yaxis_title={"text": "Composite Score", "font": {"size": 14}},
+        legend_title={"text": "Category", "font": {"size": 14}},
         height=400,
-        xaxis_title="Date",
-        yaxis_title="Composite Score",
-        legend_title="Category",
-        template="plotly_white",
-        margin=dict(l=50, r=50, t=80, b=50),
+        margin=COMMON_MARGINS,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=12),
+        ),
     )
 
     return fig
@@ -374,8 +494,12 @@ def plot_global_recovery_score(
             y=df_total["value"],
             mode="lines+markers",
             name="Raw Score",
-            line=dict(color="#1f77b4", width=2),
-            marker=dict(size=6),
+            line=dict(color=COLORS["primary"], width=2),
+            marker=dict(
+                size=7,
+                color=COLORS["primary"],
+                line=dict(width=1, color="#FFFFFF"),
+            ),
         )
     )
 
@@ -385,19 +509,28 @@ def plot_global_recovery_score(
             y=df_total["rolling_mean"],
             mode="lines",
             name=f"{window_size}-day Moving Average",
-            line=dict(color="#ff7f0e", width=2.5),
+            line=dict(color=COLORS["secondary"], width=2.5),
         )
     )
 
     fig.update_layout(
-        title="Evolution of Global Recovery Score",
-        xaxis_title="Date",
-        yaxis_title="Score",
-        template="plotly_white",
+        title={
+            "text": "Evolution of Global Recovery Score",
+            "font": {"size": 18, "color": COLORS["text"]},
+            "x": 0.5,
+        },
+        xaxis_title={"text": "Date", "font": {"size": 14}},
+        yaxis_title={"text": "Score", "font": {"size": 14}},
+        template=TEMPLATE,
         height=450,
-        margin=dict(l=50, r=50, t=80, b=50),
+        margin=COMMON_MARGINS,
         legend=dict(
-            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=12),
         ),
     )
 
@@ -450,7 +583,7 @@ def plot_recovery_metrics_by_category(
                 y=df_completeness["value"],
                 mode="lines",
                 name=f"{category} - Completeness",
-                line=dict(color="#1f77b4", width=2),
+                line=dict(color=COLORS["primary"], width=2),
                 showlegend=False,
             ),
             row=row,
@@ -463,7 +596,7 @@ def plot_recovery_metrics_by_category(
                 y=df_composite["value"],
                 mode="lines",
                 name=f"{category} - Composite",
-                line=dict(color="#ff7f0e", width=2, dash="dot"),
+                line=dict(color=COLORS["secondary"], width=2, dash="dot"),
                 showlegend=False,
             ),
             row=row,
@@ -476,7 +609,7 @@ def plot_recovery_metrics_by_category(
             y=[None],
             mode="lines",
             name="Completeness",
-            line=dict(color="#1f77b4", width=2),
+            line=dict(color=COLORS["primary"], width=2),
             showlegend=True,
         )
     )
@@ -487,24 +620,45 @@ def plot_recovery_metrics_by_category(
             y=[None],
             mode="lines",
             name="Composite",
-            line=dict(color="#ff7f0e", width=2, dash="dot"),
+            line=dict(color=COLORS["secondary"], width=2, dash="dot"),
             showlegend=True,
         )
     )
 
     fig.update_layout(
-        title="Evolution of Recovery Metrics by Category",
+        title={
+            "text": "Evolution of Recovery Metrics by Category",
+            "font": {"size": 18, "color": COLORS["text"]},
+            "x": 0.5,
+        },
         height=800,
-        template="plotly_white",
+        template=TEMPLATE,
         showlegend=True,
         legend=dict(
-            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=12),
         ),
-        margin=dict(l=50, r=50, t=100, b=50),
+        margin=COMMON_MARGINS,
     )
 
     for i in range(1, 4):
         for j in range(1, 3):
             fig.update_yaxes(range=[0, 1.1], row=i, col=j)
+            fig.update_xaxes(
+                showgrid=True,
+                gridcolor="rgba(240, 240, 240, 0.5)",
+                row=i,
+                col=j,
+            )
+            fig.update_yaxes(
+                showgrid=True,
+                gridcolor="rgba(240, 240, 240, 0.5)",
+                row=i,
+                col=j,
+            )
 
     return fig

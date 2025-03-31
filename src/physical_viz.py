@@ -7,15 +7,33 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.graph_objects import Figure
 
-# Common visualization settings
-CHART_TEMPLATE = "plotly_white"
-COLOR_MAP = {"isometric": "#1f77b4", "dynamic": "#ff7f0e"}
-HOVER_MODE = "closest"
-COMMON_MARGINS = dict(l=50, r=20, t=50, b=50)
+# Consistent color palette matching gps_viz.py
+COLORS = {
+    "primary": "#1A237E",  # Dark blue
+    "secondary": "#004D40",  # Dark green
+    "accent1": "#311B92",  # Deep purple
+    "accent2": "#01579B",  # Dark cyan
+    "accent3": "#33691E",  # Dark lime
+    "text": "#212121",  # Almost black text
+}
+QUALITATIVE_PALETTE = [
+    COLORS["primary"],
+    COLORS["secondary"],
+    COLORS["accent1"],
+    COLORS["accent2"],
+    COLORS["accent3"],
+]
+TEMPLATE = "plotly_white"
+COMMON_MARGINS = dict(l=50, r=50, t=80, b=50)
 
 
 def create_expression_count_chart(df: pd.DataFrame) -> Figure:
     """Create bar chart showing count of tests by expression type."""
+    expression_colors = {
+        "isometric": COLORS["primary"],
+        "dynamic": COLORS["secondary"],
+    }
+
     fig = px.bar(
         df["expression"].value_counts().reset_index(),
         x="expression",
@@ -23,17 +41,28 @@ def create_expression_count_chart(df: pd.DataFrame) -> Figure:
         color="expression",
         title="Number of Tests by Expression Type",
         labels={"count": "Number of Tests", "expression": "Expression Type"},
-        color_discrete_map=COLOR_MAP,
-        template=CHART_TEMPLATE,
+        color_discrete_map=expression_colors,
+        template=TEMPLATE,
     )
+
     fig.update_layout(
-        showlegend=False, hovermode=HOVER_MODE, margin=COMMON_MARGINS
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "Expression Type", "font": {"size": 14}},
+        yaxis_title={"text": "Number of Tests", "font": {"size": 14}},
+        showlegend=False,
+        hovermode="closest",
+        margin=COMMON_MARGINS,
     )
     return fig
 
 
 def create_expression_performance_boxplot(df: pd.DataFrame) -> Figure:
     """Create boxplot showing performance distribution by expression type."""
+    expression_colors = {
+        "isometric": COLORS["primary"],
+        "dynamic": COLORS["secondary"],
+    }
+
     fig = px.box(
         df.dropna(subset=["benchmarkPct"]),
         x="expression",
@@ -44,11 +73,17 @@ def create_expression_performance_boxplot(df: pd.DataFrame) -> Figure:
             "benchmarkPct": "Benchmark Percentile",
             "expression": "Expression Type",
         },
-        color_discrete_map=COLOR_MAP,
-        template=CHART_TEMPLATE,
+        color_discrete_map=expression_colors,
+        template=TEMPLATE,
     )
+
     fig.update_layout(
-        showlegend=False, hovermode=HOVER_MODE, margin=COMMON_MARGINS
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "Expression Type", "font": {"size": 14}},
+        yaxis_title={"text": "Benchmark Percentile", "font": {"size": 14}},
+        showlegend=False,
+        hovermode="closest",
+        margin=COMMON_MARGINS,
     )
     return fig
 
@@ -56,6 +91,10 @@ def create_expression_performance_boxplot(df: pd.DataFrame) -> Figure:
 def create_expression_timeline(df: pd.DataFrame) -> Figure:
     """Create timeline chart showing performance by expression type over time."""
     filtered_df = df.dropna(subset=["benchmarkPct"])
+    expression_colors = {
+        "isometric": COLORS["primary"],
+        "dynamic": COLORS["secondary"],
+    }
 
     fig = px.scatter(
         filtered_df,
@@ -69,8 +108,8 @@ def create_expression_timeline(df: pd.DataFrame) -> Figure:
             "testDate": "Test Date",
             "benchmarkPct": "Benchmark Percentile",
         },
-        color_discrete_map=COLOR_MAP,
-        template=CHART_TEMPLATE,
+        color_discrete_map=expression_colors,
+        template=TEMPLATE,
     )
 
     for expr in df["expression"].unique():
@@ -82,13 +121,31 @@ def create_expression_timeline(df: pd.DataFrame) -> Figure:
                     y=sub_df["benchmarkPct"],
                     mode="lines",
                     name=f"{expr} trend",
-                    line=dict(dash="dash", width=1),
-                    opacity=0.6,
+                    line=dict(
+                        dash="dash",
+                        width=1.5,
+                        color=expression_colors.get(expr, COLORS["accent1"]),
+                    ),
+                    opacity=0.7,
                     hoverinfo="skip",
                 )
             )
 
-    fig.update_layout(hovermode=HOVER_MODE, margin=COMMON_MARGINS)
+    fig.update_layout(
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "Test Date", "font": {"size": 14}},
+        yaxis_title={"text": "Benchmark Percentile", "font": {"size": 14}},
+        hovermode="closest",
+        margin=COMMON_MARGINS,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=12),
+        ),
+    )
     return fig
 
 
@@ -98,16 +155,23 @@ def create_movement_pie_chart(df: pd.DataFrame) -> Figure:
         df,
         names="movement",
         title="Distribution of Movement Types",
-        color_discrete_sequence=px.colors.qualitative.Bold,
-        template=CHART_TEMPLATE,
-        hole=0.4,
+        color_discrete_sequence=QUALITATIVE_PALETTE,
+        template=TEMPLATE,
+        hole=0.5,
     )
+
     fig.update_traces(
         textposition="inside",
         textinfo="percent+label",
         hoverinfo="label+percent+name",
+        marker=dict(line=dict(color="#FFFFFF", width=2)),
+        textfont=dict(size=12, color="#FFFFFF"),
     )
-    fig.update_layout(margin=COMMON_MARGINS)
+
+    fig.update_layout(
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        margin=COMMON_MARGINS,
+    )
     return fig
 
 
@@ -121,19 +185,21 @@ def create_movement_quality_heatmap(df: pd.DataFrame) -> Figure:
         aspect="auto",
         title="Movement vs Quality Heatmap",
         labels=dict(x="Quality", y="Movement", color="Count"),
-        color_continuous_scale="Viridis",
-        template=CHART_TEMPLATE,
+        color_continuous_scale=["#E8EAF6", COLORS["primary"]],
+        template=TEMPLATE,
     )
 
     fig.update_layout(
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         height=max(400, len(df["movement"].unique()) * 40),
         margin=COMMON_MARGINS,
         coloraxis_colorbar=dict(
-            title="Count",
+            title={"text": "Count", "font": {"size": 12}},
             thicknessmode="pixels",
             thickness=20,
             lenmode="pixels",
             len=300,
+            titleside="right",
         ),
     )
     return fig
@@ -170,20 +236,28 @@ def create_movement_performance_chart(df: pd.DataFrame) -> Figure:
                 symmetric=False,
                 array=movement_perf["upper"] - movement_perf["mean"],
                 arrayminus=movement_perf["mean"] - movement_perf["lower"],
+                color=COLORS["accent1"],
             ),
             name="Average Performance",
             hovertemplate="<b>%{x}</b><br>Avg Performance: %{y:.2f}<br>Tests with data: %{text}",
             text=movement_perf["count_with_data"],
-            marker_color="#1f77b4",
+            marker_color=COLORS["primary"],
         )
     )
 
     fig.update_layout(
-        title="Average Performance by Movement Type",
-        xaxis_title="Movement Type",
-        yaxis_title="Average Benchmark Percentile",
-        hovermode=HOVER_MODE,
-        template=CHART_TEMPLATE,
+        title={
+            "text": "Average Performance by Movement Type",
+            "font": {"size": 18, "color": COLORS["text"]},
+            "x": 0.5,
+        },
+        xaxis_title={"text": "Movement Type", "font": {"size": 14}},
+        yaxis_title={
+            "text": "Average Benchmark Percentile",
+            "font": {"size": 14},
+        },
+        hovermode="closest",
+        template=TEMPLATE,
         margin=COMMON_MARGINS,
     )
     return fig
@@ -203,7 +277,16 @@ def create_performance_trend_chart(df: pd.DataFrame) -> Figure:
             "benchmarkPct": "Benchmark Percentile",
         },
         title="Overall Performance Trend Over Time",
-        template=CHART_TEMPLATE,
+        template=TEMPLATE,
+    )
+
+    fig.update_traces(
+        line=dict(color=COLORS["primary"], width=2.5),
+        marker=dict(
+            color=COLORS["primary"],
+            size=8,
+            line=dict(color="#FFFFFF", width=1),
+        ),
     )
 
     x = filtered_df["testDate"].map(lambda x: x.toordinal()).values
@@ -220,7 +303,7 @@ def create_performance_trend_chart(df: pd.DataFrame) -> Figure:
                 y=p(x_range),
                 mode="lines",
                 name="Trend",
-                line=dict(color="#ff7f0e", dash="dash", width=2),
+                line=dict(color=COLORS["secondary"], dash="dash", width=2),
                 hoverinfo="skip",
             )
         )
@@ -228,7 +311,22 @@ def create_performance_trend_chart(df: pd.DataFrame) -> Figure:
     fig.update_traces(
         hovertemplate="<b>%{x|%d %b %Y}</b><br>Performance: %{y:.1f}"
     )
-    fig.update_layout(hovermode=HOVER_MODE, margin=COMMON_MARGINS)
+
+    fig.update_layout(
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "Test Date", "font": {"size": 14}},
+        yaxis_title={"text": "Benchmark Percentile", "font": {"size": 14}},
+        hovermode="closest",
+        margin=COMMON_MARGINS,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=12),
+        ),
+    )
     return fig
 
 
@@ -258,15 +356,26 @@ def create_monthly_performance_chart(df: pd.DataFrame) -> Optional[Figure]:
             "benchmarkPct_avg": "Average Benchmark Percentile",
         },
         text=monthly_data["benchmarkPct_count"].apply(lambda x: f"{x} tests"),
-        template=CHART_TEMPLATE,
-        color_discrete_sequence=["#1f77b4"],
+        template=TEMPLATE,
+        color_discrete_sequence=[COLORS["primary"]],
     )
 
     fig.update_traces(
         textposition="outside",
         hovertemplate="<b>%{x}</b><br>Avg Performance: %{y:.1f}<br>Tests: %{text}",
+        marker_line=dict(width=1, color="#FFFFFF"),
     )
-    fig.update_layout(margin=COMMON_MARGINS, xaxis=dict(tickangle=-45))
+
+    fig.update_layout(
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "Month", "font": {"size": 14}},
+        yaxis_title={
+            "text": "Average Benchmark Percentile",
+            "font": {"size": 14},
+        },
+        margin=COMMON_MARGINS,
+        xaxis=dict(tickangle=-45),
+    )
     return fig
 
 
@@ -305,7 +414,6 @@ def detailed_stats_by_movement(
         df_movement = df_filtered[df_filtered["movement"] == movement]
 
         fig = go.Figure()
-        color_palette = px.colors.qualitative.Bold
         color_idx = 0
 
         for expression in sorted(df_movement["expression"].unique()):
@@ -322,24 +430,41 @@ def detailed_stats_by_movement(
                             mode="lines+markers",
                             name=f"{expression} - {quality}",
                             line=dict(
-                                color=color_palette[
-                                    color_idx % len(color_palette)
+                                color=QUALITATIVE_PALETTE[
+                                    color_idx % len(QUALITATIVE_PALETTE)
                                 ],
                                 width=2,
                             ),
-                            marker=dict(size=8),
+                            marker=dict(
+                                size=8, line=dict(width=1, color="#FFFFFF")
+                            ),
                         )
                     )
                     color_idx += 1
 
         fig.update_layout(
-            title=f"Performance Over Time - {movement}",
-            xaxis_title="Date",
-            yaxis_title="Benchmark Percentile",
-            legend_title="Expression - Quality",
-            template=CHART_TEMPLATE,
-            hovermode=HOVER_MODE,
+            title={
+                "text": f"Performance Over Time - {movement}",
+                "font": {"size": 18, "color": COLORS["text"]},
+                "x": 0.5,
+            },
+            xaxis_title={"text": "Date", "font": {"size": 14}},
+            yaxis_title={"text": "Benchmark Percentile", "font": {"size": 14}},
+            legend_title={
+                "text": "Expression - Quality",
+                "font": {"size": 14},
+            },
+            template=TEMPLATE,
+            hovermode="closest",
             margin=COMMON_MARGINS,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.2,
+                xanchor="center",
+                x=0.5,
+                font=dict(size=12),
+            ),
         )
 
         return fig

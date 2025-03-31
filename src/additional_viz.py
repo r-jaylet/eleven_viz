@@ -7,6 +7,28 @@ import plotly.graph_objects as go
 import plotly.subplots as sp
 from plotly.graph_objs import Figure
 
+# Consistent color palette matching other viz files
+COLORS = {
+    "primary": "#1A237E",  # Dark blue
+    "secondary": "#004D40",  # Dark green
+    "accent1": "#311B92",  # Deep purple
+    "accent2": "#01579B",  # Dark cyan
+    "accent3": "#33691E",  # Dark lime
+    "warning": "#FFC107",  # Amber for warnings
+    "danger": "#C62828",  # Dark red for danger
+    "success": "#2E7D32",  # Dark green for success
+    "text": "#212121",  # Almost black text
+}
+QUALITATIVE_PALETTE = [
+    COLORS["primary"],
+    COLORS["secondary"],
+    COLORS["accent1"],
+    COLORS["accent2"],
+    COLORS["accent3"],
+]
+TEMPLATE = "plotly_white"
+COMMON_MARGINS = dict(l=50, r=50, t=80, b=50)
+
 
 def compute_load(
     df_gps: pd.DataFrame,
@@ -72,7 +94,12 @@ def plot_load(df_gps: pd.DataFrame):
             x=df_gps["distance"],
             y=df_gps["load"],
             mode="markers",
-            marker=dict(color="blue"),
+            marker=dict(
+                color=COLORS["primary"],
+                size=8,
+                opacity=0.7,
+                line=dict(width=1, color="#FFFFFF"),
+            ),
             name="Distance",
         ),
         row=1,
@@ -84,7 +111,12 @@ def plot_load(df_gps: pd.DataFrame):
             x=df_gps["distance_over_21"],
             y=df_gps["load"],
             mode="markers",
-            marker=dict(color="green"),
+            marker=dict(
+                color=COLORS["secondary"],
+                size=8,
+                opacity=0.7,
+                line=dict(width=1, color="#FFFFFF"),
+            ),
             name="Distance > 21 km/h",
         ),
         row=1,
@@ -96,7 +128,12 @@ def plot_load(df_gps: pd.DataFrame):
             x=df_gps["accel_decel_over_2_5"],
             y=df_gps["load"],
             mode="markers",
-            marker=dict(color="red"),
+            marker=dict(
+                color=COLORS["accent1"],
+                size=8,
+                opacity=0.7,
+                line=dict(width=1, color="#FFFFFF"),
+            ),
             name="Accel/Decel > 2.5",
         ),
         row=2,
@@ -110,14 +147,43 @@ def plot_load(df_gps: pd.DataFrame):
             x=sorted_load,
             y=cdf,
             mode="lines+markers",
-            marker=dict(color="purple"),
+            marker=dict(color=COLORS["accent2"], size=6, opacity=0.7),
+            line=dict(color=COLORS["accent2"], width=2),
             name="CDF",
         ),
         row=2,
         col=2,
     )
 
-    fig.update_layout(title_text="Load Analysis", height=600, width=800)
+    fig.update_layout(
+        title={
+            "text": "Load Analysis",
+            "font": {"size": 18, "color": COLORS["text"]},
+            "x": 0.5,
+        },
+        height=650,
+        width=900,
+        template=TEMPLATE,
+        margin=COMMON_MARGINS,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.15,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=12),
+        ),
+    )
+
+    fig.update_xaxes(title_text="Distance (meters)", row=1, col=1)
+    fig.update_xaxes(title_text="Distance > 21 km/h (meters)", row=1, col=2)
+    fig.update_xaxes(title_text="Accel/Decel > 2.5 m/s²", row=2, col=1)
+    fig.update_xaxes(title_text="Load Value", row=2, col=2)
+
+    fig.update_yaxes(title_text="Load", row=1, col=1)
+    fig.update_yaxes(title_text="Load", row=1, col=2)
+    fig.update_yaxes(title_text="Load", row=2, col=1)
+    fig.update_yaxes(title_text="Cumulative Probability", row=2, col=2)
 
     return fig
 
@@ -150,11 +216,11 @@ def plot_weekly_danger(
 
     def get_color(dangerous_days):
         if dangerous_days >= 3:
-            return "#E53935"  # Bright red
+            return COLORS["danger"]  # Dark red for high risk
         elif dangerous_days > 0:
-            return "#FFD600"  # Bright yellow
+            return COLORS["warning"]  # Amber for warning
         else:
-            return "#43A047"  # Bright green
+            return COLORS["success"]  # Dark green for normal
 
     weekly["color"] = weekly["dangerous_days"].apply(get_color)
 
@@ -169,8 +235,10 @@ def plot_weekly_danger(
             marker_color=weekly["color"],
             text=weekly["dangerous_days"],
             textposition="auto",
+            textfont=dict(color="#FFFFFF", size=12, family="Arial"),
             showlegend=False,
             hovertemplate="Week: %{x}<br>Dangerous days: %{text}<extra></extra>",
+            marker_line=dict(width=1, color="#FFFFFF"),
         )
     )
 
@@ -180,7 +248,7 @@ def plot_weekly_danger(
             x=[None],
             y=[None],
             mode="markers",
-            marker=dict(color="#43A047", size=12),
+            marker=dict(color=COLORS["success"], size=12),
             name="Normal (0 days)",
         )
     )
@@ -189,7 +257,7 @@ def plot_weekly_danger(
             x=[None],
             y=[None],
             mode="markers",
-            marker=dict(color="#FFD600", size=12),
+            marker=dict(color=COLORS["warning"], size=12),
             name="Warning (1-2 days)",
         )
     )
@@ -198,7 +266,7 @@ def plot_weekly_danger(
             x=[None],
             y=[None],
             mode="markers",
-            marker=dict(color="#E53935", size=12),
+            marker=dict(color=COLORS["danger"], size=12),
             name="High Risk (3+ days)",
         )
     )
@@ -206,17 +274,23 @@ def plot_weekly_danger(
     fig.update_layout(
         title={
             "text": "Weekly Training Overload Distribution",
-            "font": {"size": 20, "color": "#212121"},
+            "font": {"size": 18, "color": COLORS["text"]},
+            "x": 0.5,
         },
-        xaxis_title={"text": "Week", "font": {"size": 16}},
+        xaxis_title={"text": "Week", "font": {"size": 14}},
         yaxis=dict(tickvals=[], showticklabels=False),
-        template="plotly_white",
-        legend_title={"text": "Risk Levels", "font": {"size": 16}},
+        template=TEMPLATE,
+        legend_title={"text": "Risk Levels", "font": {"size": 14}},
         legend=dict(
-            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=12),
         ),
         height=500,
-        margin=dict(l=40, r=40, t=80, b=40),
+        margin=COMMON_MARGINS,
     )
 
     return fig
@@ -255,9 +329,11 @@ def plot_load_over_time(
             y=df_viz["load"],
             mode="lines+markers",
             name="Average Load",
-            line=dict(color="#2196F3", width=3),
+            line=dict(color=COLORS["primary"], width=3),
             marker=dict(
-                color="#2196F3", size=8, line=dict(color="#FFFFFF", width=1)
+                color=COLORS["primary"],
+                size=8,
+                line=dict(color="#FFFFFF", width=1),
             ),
             hovertemplate="Date: %{x|%d/%m/%Y}<br>Load: %{y:.3f}<extra></extra>",
         )
@@ -271,7 +347,7 @@ def plot_load_over_time(
         y0=mean_load,
         x1=df_viz["date"].max(),
         y1=mean_load,
-        line=dict(color="#FF5722", width=2, dash="dash"),
+        line=dict(color=COLORS["accent1"], width=2, dash="dash"),
     )
 
     # Add annotation for mean
@@ -280,7 +356,7 @@ def plot_load_over_time(
         y=mean_load,
         text=f"Avg: {mean_load:.3f}",
         showarrow=False,
-        font=dict(size=12, color="#FF5722"),
+        font=dict(size=12, color=COLORS["accent1"]),
         xanchor="right",
         yanchor="bottom",
         xshift=10,
@@ -289,22 +365,31 @@ def plot_load_over_time(
     fig.update_layout(
         title={
             "text": "Load Evolution Over Time",
-            "font": {"size": 20, "color": "#212121"},
+            "font": {"size": 18, "color": COLORS["text"]},
+            "x": 0.5,
         },
-        xaxis_title={"text": "Date", "font": {"size": 16}},
-        yaxis_title={"text": "Average Load", "font": {"size": 16}},
+        xaxis_title={"text": "Date", "font": {"size": 14}},
+        yaxis_title={"text": "Average Load", "font": {"size": 14}},
         xaxis=dict(
             tickformat="%d/%m/%Y",
             tickangle=-45,
-            gridcolor="#EEEEEE",
+            gridcolor="rgba(238, 238, 238, 0.5)",
         ),
-        yaxis=dict(gridcolor="#EEEEEE"),
-        template="plotly_white",
+        yaxis=dict(gridcolor="rgba(238, 238, 238, 0.5)"),
+        template=TEMPLATE,
         showlegend=True,
         autosize=True,
         hovermode="x unified",
         height=550,
-        margin=dict(l=40, r=40, t=80, b=60),
+        margin=COMMON_MARGINS,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=12),
+        ),
     )
 
     return fig
@@ -387,7 +472,7 @@ def plot_load_vs_recovery(merged_df: pd.DataFrame) -> Figure:
             y=merged_df["window_mean"],
             mode="lines",
             name="Load",
-            line=dict(color="#2196F3", width=3),
+            line=dict(color=COLORS["primary"], width=3),
             hovertemplate="Date: %{x|%d/%m/%Y}<br>Load: %{y:.3f}<extra></extra>",
         )
     )
@@ -399,7 +484,7 @@ def plot_load_vs_recovery(merged_df: pd.DataFrame) -> Figure:
             y=merged_df["rolling_mean"],
             mode="lines",
             name="Recovery Score",
-            line=dict(color="#FFA000", width=3),
+            line=dict(color=COLORS["secondary"], width=3),
             hovertemplate="Date: %{x|%d/%m/%Y}<br>Recovery: %{y:.3f}<extra></extra>",
         )
     )
@@ -411,7 +496,7 @@ def plot_load_vs_recovery(merged_df: pd.DataFrame) -> Figure:
             y=merged_df["danger_score"],
             mode="lines",
             name="Risk Score",
-            line=dict(color="#E53935", width=3),
+            line=dict(color=COLORS["danger"], width=3),
             hovertemplate="Date: %{x|%d/%m/%Y}<br>Risk: %{y:.3f}<extra></extra>",
         )
     )
@@ -420,17 +505,18 @@ def plot_load_vs_recovery(merged_df: pd.DataFrame) -> Figure:
     fig.update_layout(
         title={
             "text": "Load, Recovery and Risk Score Over Time",
-            "font": {"size": 20, "color": "#212121"},
+            "font": {"size": 18, "color": COLORS["text"]},
+            "x": 0.5,
         },
-        xaxis_title={"text": "Date", "font": {"size": 16}},
-        yaxis_title={"text": "Score", "font": {"size": 16}},
+        xaxis_title={"text": "Date", "font": {"size": 14}},
+        yaxis_title={"text": "Score", "font": {"size": 14}},
         xaxis=dict(
             tickformat="%d/%m/%Y",
             tickangle=-45,
-            gridcolor="#EEEEEE",
+            gridcolor="rgba(238, 238, 238, 0.5)",
         ),
-        yaxis=dict(gridcolor="#EEEEEE"),
-        template="plotly_white",
+        yaxis=dict(gridcolor="rgba(238, 238, 238, 0.5)"),
+        template=TEMPLATE,
         legend=dict(
             orientation="h",
             yanchor="bottom",
@@ -441,7 +527,7 @@ def plot_load_vs_recovery(merged_df: pd.DataFrame) -> Figure:
         ),
         hovermode="x unified",
         height=600,
-        margin=dict(l=40, r=40, t=80, b=60),
+        margin=COMMON_MARGINS,
     )
 
     return fig

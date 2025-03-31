@@ -8,6 +8,25 @@ from plotly.graph_objects import Figure
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
+# Consistent color palette
+COLORS = {
+    "primary": "#1A237E",  # Dark blue
+    "secondary": "#004D40",  # Dark green
+    "accent1": "#311B92",  # Deep purple
+    "accent2": "#01579B",  # Dark cyan
+    "accent3": "#33691E",  # Dark lime
+    "text": "#212121",  # Almost black text
+}
+QUALITATIVE_PALETTE = [
+    COLORS["primary"],
+    COLORS["secondary"],
+    COLORS["accent1"],
+    COLORS["accent2"],
+    COLORS["accent3"],
+]
+TEMPLATE = "plotly_white"
+COMMON_MARGINS = dict(l=50, r=50, t=80, b=50)
+
 
 def average_distances_by_recovery(
     matches_list: List[List[Union[str, float, int, None]]],
@@ -68,7 +87,6 @@ def cluster_performance(
     scaler = StandardScaler()
     df_training_scaled = scaler.fit_transform(df_training_copy[features])
 
-    # Apply K-Means clustering on training data
     kmeans_trainings = KMeans(
         n_clusters=n_clusters, random_state=42, n_init=10
     )
@@ -76,7 +94,6 @@ def cluster_performance(
         df_training_scaled
     )
 
-    # Sort clusters by distance and assign labels
     cluster_distances_trainings = df_training_copy.groupby("cluster")[
         "distance"
     ].mean()
@@ -92,7 +109,6 @@ def cluster_performance(
         cluster_labels_trainings
     )
 
-    # Apply similar process to match data
     df_matches_scaled = scaler.transform(df_matches_copy[features])
 
     kmeans_matches = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
@@ -299,7 +315,7 @@ def plot_average_distances_histogram_plotly(df: pd.DataFrame) -> Figure:
             name="Average Distance (km)",
             text=df_plot["Average Distance"].round(1),
             textposition="outside",
-            marker_color="royalblue",
+            marker_color=COLORS["primary"],
             yaxis="y1",
         )
     )
@@ -311,28 +327,48 @@ def plot_average_distances_histogram_plotly(df: pd.DataFrame) -> Figure:
             name="Number of Matches",
             text=df_plot["Number of Matches"],
             textposition="outside",
-            marker_color="orange",
-            opacity=0.7,
+            marker_color=COLORS["secondary"],
+            opacity=0.8,
             yaxis="y2",
         )
     )
 
     fig.update_layout(
-        title="Average Distance Traveled and Number of Matches by Recovery Days",
-        xaxis_title="Number of Recovery Days",
+        title={
+            "text": "Average Distance Traveled and Number of Matches by Recovery Days",
+            "font": {"size": 18, "color": COLORS["text"]},
+            "x": 0.5,
+        },
+        xaxis_title={"text": "Number of Recovery Days", "font": {"size": 14}},
         yaxis=dict(
-            title="Average Distance Traveled (km)", side="left", showgrid=False
+            title={
+                "text": "Average Distance Traveled (km)",
+                "font": {"size": 14},
+            },
+            side="left",
+            showgrid=False,
+            titlefont={"color": COLORS["primary"]},
+            tickfont={"color": COLORS["primary"]},
         ),
         yaxis2=dict(
-            title="Number of Matches",
+            title={"text": "Number of Matches", "font": {"size": 14}},
             side="right",
             overlaying="y",
             showgrid=False,
             range=[0, y2_max],
+            titlefont={"color": COLORS["secondary"]},
+            tickfont={"color": COLORS["secondary"]},
         ),
         barmode="group",
+        template=TEMPLATE,
+        margin=COMMON_MARGINS,
         legend=dict(
-            orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5
+            orientation="h",
+            yanchor="bottom",
+            y=-0.2,
+            xanchor="center",
+            x=0.5,
+            font={"size": 12},
         ),
     )
 
@@ -351,18 +387,38 @@ def plot_cluster(df: pd.DataFrame, x: str, y: str):
     Returns:
         Plotly figure with scatter plot
     """
+    cluster_colors = {
+        "Better performances": COLORS["primary"],
+        "Usual performances": COLORS["secondary"],
+        "Lower performances": COLORS["accent1"],
+    }
+
     fig = px.scatter(
         df,
         x=x,
         y=y,
         color=df["cluster_label"].astype(str),
-        title="Clustering of Matches based on Distance and Peak Speed",
-        labels={x: x, y: y, "cluster_label": "Cluster"},
-        size_max=10,
+        color_discrete_map=cluster_colors,
+        title="Clustering of Matches based on Performance Metrics",
+        labels={
+            x: x.replace("_", " ").title(),
+            y: y.replace("_", " ").title(),
+            "cluster_label": "Performance Level",
+        },
+        size_max=12,
+        template=TEMPLATE,
     )
 
-    fig.update_traces(marker=dict(size=10, opacity=0.7))
-    fig.update_layout(legend_title_text="Cluster")
+    fig.update_traces(
+        marker=dict(size=10, opacity=0.8, line=dict(width=1, color="#FFFFFF"))
+    )
+
+    fig.update_layout(
+        legend_title_text="Performance Level",
+        font=dict(family="Arial", size=12),
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        margin=COMMON_MARGINS,
+    )
 
     return fig
 
@@ -387,9 +443,9 @@ def plot_distance_distribution_by_duration(
     df_combined = pd.concat([df_short, df_medium, df_long], ignore_index=True)
 
     color_map = {
-        "<30min": "rgba(255, 0, 0, 0.8)",  # Red for <30min
-        "30-60min": "rgba(0, 255, 0, 0.6)",  # Green for 30-60min
-        ">60min": "rgba(0, 0, 255, 0.2)",  # Blue for >60min
+        "<30min": COLORS["primary"],
+        "30-60min": COLORS["secondary"],
+        ">60min": COLORS["accent1"],
     }
 
     fig = px.histogram(
@@ -399,6 +455,17 @@ def plot_distance_distribution_by_duration(
         barmode="overlay",
         title="Distance Distribution by Match Duration",
         color_discrete_map=color_map,
+        opacity=0.75,
+        template=TEMPLATE,
+        labels={"distance": "Distance (meters)", "duration_group": "Duration"},
+    )
+
+    fig.update_layout(
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "Distance (meters)", "font": {"size": 14}},
+        yaxis_title={"text": "Count", "font": {"size": 14}},
+        legend_title={"text": "Match Duration", "font": {"size": 14}},
+        margin=COMMON_MARGINS,
     )
 
     return fig
@@ -422,7 +489,6 @@ def plot_player_state(
     Returns:
         Plotly figure with stacked bar chart or None if no data
     """
-    # Filter by season if specified
     if season:
         df_filtered = df[df["season"] == season]
     elif start_date and end_date:
@@ -435,12 +501,18 @@ def plot_player_state(
         print("No data available for the specified period.")
         return None
 
+    performance_colors = {
+        "Better performances": COLORS["primary"],
+        "Usual performances": COLORS["secondary"],
+        "Lower performances": COLORS["accent1"],
+    }
+
     fig = px.bar(
         df_filtered,
         x="date",
         color="cluster_label",
-        title=f"Player State Distribution {f'- {season}' if season else ''}",
-        labels={"cluster_label": "Player State", "date": "Date"},
+        title=f"Player Performance Distribution {f'- {season}' if season else ''}",
+        labels={"cluster_label": "Performance Level", "date": "Date"},
         category_orders={
             "cluster_label": [
                 "Better performances",
@@ -449,10 +521,17 @@ def plot_player_state(
             ]
         },
         barmode="stack",
+        color_discrete_map=performance_colors,
+        template=TEMPLATE,
     )
 
     fig.update_layout(
-        xaxis_title="Date", yaxis_title="Number of Events", showlegend=True
+        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
+        xaxis_title={"text": "Date", "font": {"size": 14}},
+        yaxis_title={"text": "Number of Events", "font": {"size": 14}},
+        legend_title={"text": "Performance Level", "font": {"size": 14}},
+        showlegend=True,
+        margin=COMMON_MARGINS,
     )
 
     return fig
@@ -471,7 +550,6 @@ def plot_radar_chart(df: pd.DataFrame, date_str: str) -> Optional[Figure]:
     """
     date_obj = pd.to_datetime(date_str, format="%d/%m/%Y")
 
-    # Filter the data for the selected date
     df_filtered = df[df["date"] == date_obj].copy()
     if df_filtered.empty:
         print(f"No data found for the date {date_str}")
@@ -505,11 +583,9 @@ def plot_radar_chart(df: pd.DataFrame, date_str: str) -> Optional[Figure]:
     metrics += hr_metrics
     df[metrics] = df[metrics].apply(pd.to_numeric, errors="coerce")
 
-    # Determine the scaling factor (max value) for each metric in the DataFrame
     scale_factors = {metric: df[metric].max() for metric in metrics}
     df_filtered[metrics] = df_filtered[metrics].fillna(0)
 
-    # Normalize the values
     scaled_values = [
         (
             (df_filtered.iloc[0][metric] / scale_factors[metric])
@@ -519,14 +595,17 @@ def plot_radar_chart(df: pd.DataFrame, date_str: str) -> Optional[Figure]:
         for metric in metrics
     ]
 
+    # Prettier metric labels
+    metric_labels = [m.replace("_", " ").title() for m in metrics]
+
     fig = go.Figure()
 
     fig.add_trace(
         go.Scatterpolar(
             r=scaled_values,
-            theta=metrics,
+            theta=metric_labels,
             fill="toself",
-            name=f"Data from {date_str}",
+            name=f"Performance on {date_str}",
             text=[
                 f"{int(round(v))}" if metric not in hr_metrics else f"{v:.1f}"
                 for metric, v in zip(
@@ -535,17 +614,34 @@ def plot_radar_chart(df: pd.DataFrame, date_str: str) -> Optional[Figure]:
             ],
             textposition="top center",
             mode="lines+text",
-            textfont=dict(size=10),
+            textfont=dict(size=10, color="#FFFFFF"),
+            line=dict(color=COLORS["primary"], width=2),
+            fillcolor=f"rgba{tuple(int(COLORS['primary'][i:i+2], 16) for i in (1, 3, 5)) + (0.5,)}",
         )
     )
 
     fig.update_layout(
         polar=dict(
-            radialaxis=dict(visible=True, showticklabels=False),
-            angularaxis=dict(visible=True),
+            radialaxis=dict(
+                visible=True,
+                showticklabels=False,
+                gridcolor="rgba(240, 240, 240, 0.3)",
+            ),
+            angularaxis=dict(
+                visible=True,
+                gridcolor="rgba(240, 240, 240, 0.3)",
+                linecolor="rgba(240, 240, 240, 0.3)",
+            ),
+            bgcolor="rgba(248, 248, 248, 0.5)",
         ),
-        title=f"Performance Analysis - {date_str}",
+        title={
+            "text": f"Performance Analysis - {date_str}",
+            "font": {"size": 18, "color": COLORS["text"]},
+            "x": 0.5,
+        },
+        template=TEMPLATE,
         showlegend=False,
+        margin=dict(l=80, r=80, t=100, b=50),
     )
 
     return fig
@@ -576,16 +672,26 @@ def stats_vs_match_time(df: pd.DataFrame) -> Tuple[Figure, Figure, Figure]:
                 int(round(df_group["distance_over_27"].mean(), 0)),
             ]
 
+            colors = [
+                COLORS["primary"],
+                COLORS["secondary"],
+                COLORS["accent1"],
+            ]
+
             fig.add_trace(
                 go.Pie(
                     labels=[">21 km/h", ">24 km/h", ">27 km/h"],
                     values=distances_splits,
                     name=f"Speeds - {label}",
                     domain={"x": [i * 0.33, (i + 1) * 0.33], "y": [0, 1]},
-                    hole=0.4,
+                    hole=0.5,
                     textinfo="value+percent",
                     insidetextorientation="radial",
-                    marker=dict(line=dict(color="white", width=2)),
+                    marker=dict(
+                        colors=colors, line=dict(color="#FFFFFF", width=2)
+                    ),
+                    textfont=dict(size=11),
+                    hoverinfo="label+value+percent",
                 )
             )
 
@@ -597,14 +703,28 @@ def stats_vs_match_time(df: pd.DataFrame) -> Tuple[Figure, Figure, Figure]:
                     yref="paper",
                     text=f"<b>{label}</b>",
                     showarrow=False,
-                    font=dict(size=18, color="black"),
+                    font=dict(size=16, color=COLORS["text"]),
                 )
             )
 
         fig.update_layout(
-            title="High-speed Distance Coverage",
+            title={
+                "text": "High-speed Distance Coverage by Match Duration",
+                "font": {"size": 18, "color": COLORS["text"]},
+                "x": 0.5,
+            },
             showlegend=True,
             annotations=annotations,
+            template=TEMPLATE,
+            margin=COMMON_MARGINS,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.2,
+                xanchor="center",
+                x=0.5,
+                font=dict(size=12),
+            ),
         )
         return fig
 
@@ -622,16 +742,26 @@ def stats_vs_match_time(df: pd.DataFrame) -> Tuple[Figure, Figure, Figure]:
                 int(round(df_group["accel_decel_over_4_5"].mean(), 0)),
             ]
 
+            colors = [
+                COLORS["primary"],
+                COLORS["secondary"],
+                COLORS["accent1"],
+            ]
+
             fig.add_trace(
                 go.Pie(
                     labels=[">2.5 m/s²", ">3.5 m/s²", ">4.5 m/s²"],
                     values=accel_splits,
                     name=f"Acceleration/Deceleration - {label}",
                     domain={"x": [i * 0.33, (i + 1) * 0.33], "y": [0, 1]},
-                    hole=0.4,
+                    hole=0.5,
                     textinfo="value+percent",
                     insidetextorientation="radial",
-                    marker=dict(line=dict(color="white", width=2)),
+                    marker=dict(
+                        colors=colors, line=dict(color="#FFFFFF", width=2)
+                    ),
+                    textfont=dict(size=11),
+                    hoverinfo="label+value+percent",
                 )
             )
 
@@ -643,14 +773,28 @@ def stats_vs_match_time(df: pd.DataFrame) -> Tuple[Figure, Figure, Figure]:
                     yref="paper",
                     text=f"<b>{label}</b>",
                     showarrow=False,
-                    font=dict(size=18, color="black"),
+                    font=dict(size=16, color=COLORS["text"]),
                 )
             )
 
         fig.update_layout(
-            title="Acceleration and Deceleration",
+            title={
+                "text": "Acceleration and Deceleration by Match Duration",
+                "font": {"size": 18, "color": COLORS["text"]},
+                "x": 0.5,
+            },
             showlegend=True,
             annotations=annotations,
+            template=TEMPLATE,
+            margin=COMMON_MARGINS,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.2,
+                xanchor="center",
+                x=0.5,
+                font=dict(size=12),
+            ),
         )
         return fig
 
@@ -705,16 +849,28 @@ def stats_vs_match_time(df: pd.DataFrame) -> Tuple[Figure, Figure, Figure]:
                 ),
             ]
 
+            colors = [
+                COLORS["primary"],
+                COLORS["secondary"],
+                COLORS["accent1"],
+                COLORS["accent2"],
+                COLORS["accent3"],
+            ]
+
             fig.add_trace(
                 go.Pie(
                     labels=["Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5"],
                     values=hr_splits,
                     name=f"HR Zones - {label}",
                     domain={"x": [i * 0.33, (i + 1) * 0.33], "y": [0, 1]},
-                    hole=0.4,
+                    hole=0.5,
                     textinfo="value+percent",
                     insidetextorientation="radial",
-                    marker=dict(line=dict(color="white", width=2)),
+                    marker=dict(
+                        colors=colors, line=dict(color="#FFFFFF", width=2)
+                    ),
+                    textfont=dict(size=11),
+                    hoverinfo="label+value+percent",
                 )
             )
 
@@ -726,14 +882,28 @@ def stats_vs_match_time(df: pd.DataFrame) -> Tuple[Figure, Figure, Figure]:
                     yref="paper",
                     text=f"<b>{label}</b>",
                     showarrow=False,
-                    font=dict(size=18, color="black"),
+                    font=dict(size=16, color=COLORS["text"]),
                 )
             )
 
         fig.update_layout(
-            title="Time Spent in Heart Rate Zones",
+            title={
+                "text": "Time Spent in Heart Rate Zones by Match Duration",
+                "font": {"size": 18, "color": COLORS["text"]},
+                "x": 0.5,
+            },
             showlegend=True,
             annotations=annotations,
+            template=TEMPLATE,
+            margin=COMMON_MARGINS,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.2,
+                xanchor="center",
+                x=0.5,
+                font=dict(size=12),
+            ),
         )
         return fig
 
