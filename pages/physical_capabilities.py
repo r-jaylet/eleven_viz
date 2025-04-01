@@ -6,8 +6,6 @@ from src.physical_viz import (
     calculate_kpis,
     create_expression_count_chart,
     create_expression_performance_boxplot,
-    create_expression_timeline,
-    create_monthly_performance_chart,
     create_movement_performance_chart,
     create_movement_pie_chart,
     create_performance_trend_chart,
@@ -16,102 +14,105 @@ from src.physical_viz import (
 )
 
 
-def print_data_for_date(df, date):
-    date_data = get_data_for_date(df, date)
-    if not date_data.empty:
-        st.subheader(f"Performance Data for {date}")
-        st.dataframe(
-            date_data[["movement", "expression", "quality", "benchmarkPct"]],
-            use_container_width=True,
-        )
-    else:
-        st.info(f"No data available for {date}")
-
-
 def show():
-    st.title("Physical Capabilities Analysis")
-    st.markdown("### Athlete Performance Metrics")
+    st.title("Physical Capabilities")
 
     try:
+        # Load data
         df = load_physical_capabilities(
             "data/players_data/marc_cucurella/CFC Physical Capability Data.csv",
+            season=st.session_state.selected_season,
         )
         df_filtered = df.dropna(subset=["benchmarkPct"])
 
+        # Key metrics
         kpis = calculate_kpis(df_filtered)
 
+        # Display metrics in a cleaner layout
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Total Tests", kpis["total_entries"])
+            st.metric("Tests Completed", kpis["total_entries"])
         with col2:
-            st.metric("Avg Benchmark", f"{kpis['average_benchmark']:.1f}%")
+            st.metric("Average Benchmark", f"{kpis['average_benchmark']:.1f}%")
         with col3:
-            st.metric(
-                "Best Movement",
-                max(kpis["benchmark_by_movement"].items(), key=lambda x: x[1])[
-                    0
-                ],
-            )
+            best_movement = max(
+                kpis["benchmark_by_movement"].items(), key=lambda x: x[1]
+            )[0]
+            st.metric("Best Movement", best_movement)
 
-        st.subheader("Performance Trends")
-        tabs = st.tabs(["Timeline", "Monthly", "By Movement", "By Expression"])
+        # Simplified tabs
+        tab1, tab2 = st.tabs(["Performance Overview", "Movement Analysis"])
 
-        with tabs[0]:
-            fig_trend = create_performance_trend_chart(df_filtered)
-            st.plotly_chart(fig_trend, use_container_width=True)
-
-        with tabs[1]:
-            fig_monthly = create_monthly_performance_chart(df_filtered)
-            if fig_monthly:
-                st.plotly_chart(fig_monthly, use_container_width=True)
-            else:
-                st.info("Not enough data for monthly visualization")
-
-        with tabs[2]:
-            fig_movement_perf = create_movement_performance_chart(df_filtered)
-            st.plotly_chart(fig_movement_perf, use_container_width=True)
-
-        with tabs[3]:
+        # PERFORMANCE OVERVIEW TAB
+        with tab1:
+            # Expression analysis in single row
+            st.subheader("Expression Analysis")
             col1, col2 = st.columns(2)
+
             with col1:
+                # Count of expressions
                 fig_expr_count = create_expression_count_chart(df_filtered)
                 st.plotly_chart(fig_expr_count, use_container_width=True)
+
             with col2:
+                # Performance by expression type
                 fig_expr_perf = create_expression_performance_boxplot(
                     df_filtered
                 )
                 st.plotly_chart(fig_expr_perf, use_container_width=True)
 
-            fig_expr_timeline = create_expression_timeline(df_filtered)
-            st.plotly_chart(fig_expr_timeline, use_container_width=True)
+            # Clear performance trend chart
+            st.subheader("Performance Trend")
+            fig_trend = create_performance_trend_chart(df_filtered)
+            st.plotly_chart(fig_trend, use_container_width=True)
 
-        st.subheader("Movement Analysis")
-        col1, col2 = st.columns(2)
-        with col1:
-            fig_pie = create_movement_pie_chart(df_filtered)
-            st.plotly_chart(fig_pie, use_container_width=True)
+        # MOVEMENT ANALYSIS TAB
+        with tab2:
+            st.subheader("Movement Breakdown")
 
-        with col2:
-            st.markdown("##### Movement Breakdown")
-            movements = sorted(df_filtered["movement"].unique())
-            selected_movement = st.selectbox("Select movement", movements)
-            if selected_movement:
-                movement_data = df_filtered[
-                    df_filtered["movement"] == selected_movement
-                ]
-                st.markdown(
-                    f"Average benchmark: **{movement_data['benchmarkPct'].mean():.1f}%**"
+            # Movement distribution and selection
+            col1, col2 = st.columns(2)
+
+            with col1:
+                # Movement distribution pie chart
+                fig_pie = create_movement_pie_chart(df_filtered)
+                st.plotly_chart(fig_pie, use_container_width=True)
+
+            with col2:
+                # Movement selector
+                movements = sorted(df_filtered["movement"].unique())
+                selected_movement = st.selectbox("Select movement", movements)
+
+                if selected_movement:
+                    movement_data = df_filtered[
+                        df_filtered["movement"] == selected_movement
+                    ]
+                    avg_benchmark = movement_data["benchmarkPct"].mean()
+
+                    # Large, clear metric display
+                    st.markdown(f"### {selected_movement}")
+                    st.metric("Average Benchmark", f"{avg_benchmark:.1f}%")
+
+            # Performance by movement - simplified chart
+            st.subheader("Movement Performance")
+            fig_movement_perf = create_movement_performance_chart(df_filtered)
+            st.plotly_chart(fig_movement_perf, use_container_width=True)
+
+            # Specific date data
+            st.subheader("Recent Test Results")
+            latest_date = df_filtered["testDate"].max()
+            selected_date = st.date_input("Select date", value=latest_date)
+
+            date_data = get_data_for_date(df_filtered, date=selected_date)
+            if not date_data.empty:
+                st.dataframe(
+                    date_data[
+                        ["movement", "expression", "quality", "benchmarkPct"]
+                    ],
+                    use_container_width=True,
                 )
-
-        st.subheader("Detailed Movement Statistics")
-        fig_movement = detailed_stats_by_movement(df_filtered)
-        st.plotly_chart(fig_movement, use_container_width=True)
-
-        st.subheader("Data for Specific Date")
-        selected_date = st.date_input(
-            "Select date", value=pd.to_datetime("2024-01-01")
-        )
-        print_data_for_date(df_filtered, date=selected_date)
+            else:
+                st.info(f"No data available for {selected_date}")
 
     except Exception as e:
-        st.error(f"Error loading or processing data: {e}")
+        st.error(f"Error: {e}")

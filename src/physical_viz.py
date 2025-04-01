@@ -39,14 +39,12 @@ def create_expression_count_chart(df: pd.DataFrame) -> Figure:
         x="expression",
         y="count",
         color="expression",
-        title="Number of Tests by Expression Type",
         labels={"count": "Number of Tests", "expression": "Expression Type"},
         color_discrete_map=expression_colors,
         template=TEMPLATE,
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         xaxis_title={"text": "Expression Type", "font": {"size": 14}},
         yaxis_title={"text": "Number of Tests", "font": {"size": 14}},
         showlegend=False,
@@ -68,7 +66,6 @@ def create_expression_performance_boxplot(df: pd.DataFrame) -> Figure:
         x="expression",
         y="benchmarkPct",
         color="expression",
-        title="Performance by Expression Type",
         labels={
             "benchmarkPct": "Benchmark Percentile",
             "expression": "Expression Type",
@@ -78,7 +75,6 @@ def create_expression_performance_boxplot(df: pd.DataFrame) -> Figure:
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         xaxis_title={"text": "Expression Type", "font": {"size": 14}},
         yaxis_title={"text": "Benchmark Percentile", "font": {"size": 14}},
         showlegend=False,
@@ -103,7 +99,6 @@ def create_expression_timeline(df: pd.DataFrame) -> Figure:
         color="expression",
         size=[10] * len(filtered_df),
         hover_data=["movement", "quality"],
-        title="Performance Timeline by Expression Type",
         labels={
             "testDate": "Test Date",
             "benchmarkPct": "Benchmark Percentile",
@@ -132,7 +127,6 @@ def create_expression_timeline(df: pd.DataFrame) -> Figure:
             )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         xaxis_title={"text": "Test Date", "font": {"size": 14}},
         yaxis_title={"text": "Benchmark Percentile", "font": {"size": 14}},
         hovermode="closest",
@@ -154,7 +148,6 @@ def create_movement_pie_chart(df: pd.DataFrame) -> Figure:
     fig = px.pie(
         df,
         names="movement",
-        title="Distribution of Movement Types",
         color_discrete_sequence=QUALITATIVE_PALETTE,
         template=TEMPLATE,
         hole=0.5,
@@ -169,7 +162,6 @@ def create_movement_pie_chart(df: pd.DataFrame) -> Figure:
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         margin=COMMON_MARGINS,
     )
     return fig
@@ -183,14 +175,12 @@ def create_movement_quality_heatmap(df: pd.DataFrame) -> Figure:
         pivot,
         text_auto=True,
         aspect="auto",
-        title="Movement vs Quality Heatmap",
         labels=dict(x="Quality", y="Movement", color="Count"),
         color_continuous_scale=["#E8EAF6", COLORS["primary"]],
         template=TEMPLATE,
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         height=max(400, len(df["movement"].unique()) * 40),
         margin=COMMON_MARGINS,
         coloraxis_colorbar=dict(
@@ -246,11 +236,6 @@ def create_movement_performance_chart(df: pd.DataFrame) -> Figure:
     )
 
     fig.update_layout(
-        title={
-            "text": "Average Performance by Movement Type",
-            "font": {"size": 18, "color": COLORS["text"]},
-            "x": 0.5,
-        },
         xaxis_title={"text": "Movement Type", "font": {"size": 14}},
         yaxis_title={
             "text": "Average Benchmark Percentile",
@@ -276,7 +261,6 @@ def create_performance_trend_chart(df: pd.DataFrame) -> Figure:
             "testDate": "Test Date",
             "benchmarkPct": "Benchmark Percentile",
         },
-        title="Overall Performance Trend Over Time",
         template=TEMPLATE,
     )
 
@@ -313,7 +297,6 @@ def create_performance_trend_chart(df: pd.DataFrame) -> Figure:
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         xaxis_title={"text": "Test Date", "font": {"size": 14}},
         yaxis_title={"text": "Benchmark Percentile", "font": {"size": 14}},
         hovermode="closest",
@@ -350,7 +333,6 @@ def create_monthly_performance_chart(df: pd.DataFrame) -> Optional[Figure]:
         monthly_data,
         x="month",
         y="benchmarkPct_avg",
-        title="Monthly Average Performance",
         labels={
             "month": "Month",
             "benchmarkPct_avg": "Average Benchmark Percentile",
@@ -367,7 +349,6 @@ def create_monthly_performance_chart(df: pd.DataFrame) -> Optional[Figure]:
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         xaxis_title={"text": "Month", "font": {"size": 14}},
         yaxis_title={
             "text": "Average Benchmark Percentile",
@@ -443,11 +424,6 @@ def detailed_stats_by_movement(
                     color_idx += 1
 
         fig.update_layout(
-            title={
-                "text": f"Performance Over Time - {movement}",
-                "font": {"size": 18, "color": COLORS["text"]},
-                "x": 0.5,
-            },
             xaxis_title={"text": "Date", "font": {"size": 14}},
             yaxis_title={"text": "Benchmark Percentile", "font": {"size": 14}},
             legend_title={

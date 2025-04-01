@@ -334,11 +334,6 @@ def plot_average_distances_histogram_plotly(df: pd.DataFrame) -> Figure:
     )
 
     fig.update_layout(
-        title={
-            "text": "Average Distance Traveled and Number of Matches by Recovery Days",
-            "font": {"size": 18, "color": COLORS["text"]},
-            "x": 0.5,
-        },
         xaxis_title={"text": "Number of Recovery Days", "font": {"size": 14}},
         yaxis=dict(
             title={
@@ -399,7 +394,6 @@ def plot_cluster(df: pd.DataFrame, x: str, y: str):
         y=y,
         color=df["cluster_label"].astype(str),
         color_discrete_map=cluster_colors,
-        title="Clustering of Matches based on Performance Metrics",
         labels={
             x: x.replace("_", " ").title(),
             y: y.replace("_", " ").title(),
@@ -416,7 +410,6 @@ def plot_cluster(df: pd.DataFrame, x: str, y: str):
     fig.update_layout(
         legend_title_text="Performance Level",
         font=dict(family="Arial", size=12),
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         margin=COMMON_MARGINS,
     )
 
@@ -453,7 +446,6 @@ def plot_distance_distribution_by_duration(
         x="distance",
         color="duration_group",
         barmode="overlay",
-        title="Distance Distribution by Match Duration",
         color_discrete_map=color_map,
         opacity=0.75,
         template=TEMPLATE,
@@ -461,7 +453,6 @@ def plot_distance_distribution_by_duration(
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         xaxis_title={"text": "Distance (meters)", "font": {"size": 14}},
         yaxis_title={"text": "Count", "font": {"size": 14}},
         legend_title={"text": "Match Duration", "font": {"size": 14}},
@@ -511,7 +502,6 @@ def plot_player_state(
         df_filtered,
         x="date",
         color="cluster_label",
-        title=f"Player Performance Distribution {f'- {season}' if season else ''}",
         labels={"cluster_label": "Performance Level", "date": "Date"},
         category_orders={
             "cluster_label": [
@@ -526,7 +516,6 @@ def plot_player_state(
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         xaxis_title={"text": "Date", "font": {"size": 14}},
         yaxis_title={"text": "Number of Events", "font": {"size": 14}},
         legend_title={"text": "Performance Level", "font": {"size": 14}},
@@ -634,11 +623,6 @@ def plot_radar_chart(df: pd.DataFrame, date_str: str) -> Optional[Figure]:
             ),
             bgcolor="rgba(248, 248, 248, 0.5)",
         ),
-        title={
-            "text": f"Performance Analysis - {date_str}",
-            "font": {"size": 18, "color": COLORS["text"]},
-            "x": 0.5,
-        },
         template=TEMPLATE,
         showlegend=False,
         margin=dict(l=80, r=80, t=100, b=50),
@@ -667,9 +651,9 @@ def stats_vs_match_time(df: pd.DataFrame) -> Tuple[Figure, Figure, Figure]:
 
         for i, (label, df_group) in enumerate(df_groups.items()):
             distances_splits = [
-                int(round(df_group["distance_over_21"].mean(), 0)),
-                int(round(df_group["distance_over_24"].mean(), 0)),
-                int(round(df_group["distance_over_27"].mean(), 0)),
+                int(round(df_group["distance_over_21"].mean(skipna=True) if not df_group["distance_over_21"].isna().all() else 0, 0)),
+                int(round(df_group["distance_over_24"].mean(skipna=True) if not df_group["distance_over_24"].isna().all() else 0, 0)),
+                int(round(df_group["distance_over_27"].mean(skipna=True) if not df_group["distance_over_27"].isna().all() else 0, 0)),
             ]
 
             colors = [
@@ -708,11 +692,6 @@ def stats_vs_match_time(df: pd.DataFrame) -> Tuple[Figure, Figure, Figure]:
             )
 
         fig.update_layout(
-            title={
-                "text": "High-speed Distance Coverage by Match Duration",
-                "font": {"size": 18, "color": COLORS["text"]},
-                "x": 0.5,
-            },
             showlegend=True,
             annotations=annotations,
             template=TEMPLATE,
@@ -740,6 +719,11 @@ def stats_vs_match_time(df: pd.DataFrame) -> Tuple[Figure, Figure, Figure]:
                 int(round(df_group["accel_decel_over_2_5"].mean(), 0)),
                 int(round(df_group["accel_decel_over_3_5"].mean(), 0)),
                 int(round(df_group["accel_decel_over_4_5"].mean(), 0)),
+            ]
+            accel_splits = [
+                int(round(df_group["accel_decel_over_2_5"].mean(skipna=True) if not df_group["accel_decel_over_2_5"].isna().all() else 0, 0)),
+                int(round(df_group["accel_decel_over_3_5"].mean(skipna=True) if not df_group["accel_decel_over_3_5"].isna().all() else 0, 0)),
+                int(round(df_group["accel_decel_over_4_5"].mean(skipna=True) if not df_group["accel_decel_over_4_5"].isna().all() else 0, 0)),
             ]
 
             colors = [
@@ -778,11 +762,6 @@ def stats_vs_match_time(df: pd.DataFrame) -> Tuple[Figure, Figure, Figure]:
             )
 
         fig.update_layout(
-            title={
-                "text": "Acceleration and Deceleration by Match Duration",
-                "font": {"size": 18, "color": COLORS["text"]},
-                "x": 0.5,
-            },
             showlegend=True,
             annotations=annotations,
             template=TEMPLATE,
@@ -887,11 +866,6 @@ def stats_vs_match_time(df: pd.DataFrame) -> Tuple[Figure, Figure, Figure]:
             )
 
         fig.update_layout(
-            title={
-                "text": "Time Spent in Heart Rate Zones by Match Duration",
-                "font": {"size": 18, "color": COLORS["text"]},
-                "x": 0.5,
-            },
             showlegend=True,
             annotations=annotations,
             template=TEMPLATE,

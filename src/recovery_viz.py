@@ -39,11 +39,9 @@ def create_completeness_heatmap(completeness_df: pd.DataFrame) -> go.Figure:
         x=pivot_completeness.columns,
         y=pivot_completeness.index.strftime("%d %b"),
         color_continuous_scale=["#E8EAF6", COLORS["primary"]],
-        title="Assessment Completeness by Category and Date",
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         height=400,
         xaxis_title={"text": "Assessment Category", "font": {"size": 14}},
         yaxis_title={"text": "Session Date", "font": {"size": 14}},
@@ -70,7 +68,6 @@ def create_category_completeness_bar(
         category_completeness,
         x="category",
         y="value",
-        title="Average Completeness by Category",
         labels={"value": "Average Completeness", "category": "Category"},
         color="category",
         color_discrete_sequence=QUALITATIVE_PALETTE,
@@ -78,7 +75,6 @@ def create_category_completeness_bar(
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         xaxis_title={"text": "Category", "font": {"size": 14}},
         yaxis_title={"text": "Average Completeness", "font": {"size": 14}},
         showlegend=False,
@@ -98,7 +94,6 @@ def create_daily_completeness_line(completeness_df: pd.DataFrame) -> go.Figure:
         daily_completeness,
         x="sessionDate",
         y="value",
-        title="Daily Average Completeness",
         labels={"value": "Average Completeness", "sessionDate": "Date"},
         markers=True,
         template=TEMPLATE,
@@ -114,7 +109,6 @@ def create_daily_completeness_line(completeness_df: pd.DataFrame) -> go.Figure:
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         xaxis_title={"text": "Date", "font": {"size": 14}},
         yaxis_title={"text": "Average Completeness", "font": {"size": 14}},
         height=400,
@@ -155,11 +149,6 @@ def create_completeness_radar(latest_completeness: pd.DataFrame) -> go.Figure:
             ),
             bgcolor="rgba(248, 248, 248, 0.5)",
         ),
-        title={
-            "text": "Latest Completeness by Category",
-            "font": {"size": 18, "color": COLORS["text"]},
-            "x": 0.5,
-        },
         showlegend=False,
         template=TEMPLATE,
         margin=dict(l=70, r=70, t=80, b=50),
@@ -293,7 +282,6 @@ def create_daily_tracking(daily_stats: pd.DataFrame) -> go.Figure:
         y="mean",
         size="count",
         color="mean",
-        title="Daily Recovery Status Overview",
         labels={
             "sessionDate": "Date",
             "mean": "Average Value",
@@ -316,7 +304,6 @@ def create_daily_tracking(daily_stats: pd.DataFrame) -> go.Figure:
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         xaxis_title={"text": "Session Date", "font": {"size": 14}},
         yaxis_title={"text": "Average Recovery Value", "font": {"size": 14}},
         height=400,
@@ -342,7 +329,6 @@ def create_date_metrics_bar(
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         xaxis_title={"text": "", "font": {"size": 14}},
         yaxis_title={"text": "Value", "font": {"size": 14}},
         legend_title={"text": "Category", "font": {"size": 14}},
@@ -365,7 +351,6 @@ def create_completeness_patterns(completeness_df: pd.DataFrame) -> go.Figure:
         x="sessionDate",
         y="value",
         color="category",
-        title="Completeness Patterns by Category",
         labels={
             "value": "Completeness",
             "sessionDate": "Date",
@@ -382,7 +367,6 @@ def create_completeness_patterns(completeness_df: pd.DataFrame) -> go.Figure:
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         xaxis_title={"text": "Date", "font": {"size": 14}},
         yaxis_title={"text": "Completeness Value", "font": {"size": 14}},
         legend_title={"text": "Category", "font": {"size": 14}},
@@ -413,12 +397,10 @@ def create_correlation_heatmap(corr_matrix: pd.DataFrame) -> go.Figure:
             COLORS["primary"],
         ],  # Red to white to blue
         range_color=[-1, 1],
-        title="Correlation Between Recovery Metrics",
         template=TEMPLATE,
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         height=600,
         xaxis_tickangle=-45,
         margin=COMMON_MARGINS,
@@ -433,7 +415,6 @@ def create_composite_line(composite_df: pd.DataFrame) -> go.Figure:
         x="sessionDate",
         y="value",
         color="category",
-        title="Composite Scores by Category",
         labels={
             "value": "Composite Score",
             "sessionDate": "Date",
@@ -450,7 +431,6 @@ def create_composite_line(composite_df: pd.DataFrame) -> go.Figure:
     )
 
     fig.update_layout(
-        title={"font": {"size": 18, "color": COLORS["text"]}, "x": 0.5},
         xaxis_title={"text": "Date", "font": {"size": 14}},
         yaxis_title={"text": "Composite Score", "font": {"size": 14}},
         legend_title={"text": "Category", "font": {"size": 14}},
@@ -514,11 +494,6 @@ def plot_global_recovery_score(
     )
 
     fig.update_layout(
-        title={
-            "text": "Evolution of Global Recovery Score",
-            "font": {"size": 18, "color": COLORS["text"]},
-            "x": 0.5,
-        },
         xaxis_title={"text": "Date", "font": {"size": 14}},
         yaxis_title={"text": "Score", "font": {"size": 14}},
         template=TEMPLATE,
@@ -626,11 +601,6 @@ def plot_recovery_metrics_by_category(
     )
 
     fig.update_layout(
-        title={
-            "text": "Evolution of Recovery Metrics by Category",
-            "font": {"size": 18, "color": COLORS["text"]},
-            "x": 0.5,
-        },
         height=800,
         template=TEMPLATE,
         showlegend=True,

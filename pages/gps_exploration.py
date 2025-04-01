@@ -18,44 +18,43 @@ def show():
     st.title("GPS Data Exploration")
 
     try:
-        # Load and filter data
+        # Load data
         df, df_active = load_gps(
-            "data/players_data/marc_cucurella/CFC GPS Data.csv"
+            "data/players_data/marc_cucurella/CFC GPS Data.csv",
+            season=st.session_state.selected_season,
         )
         df_filtered = df[df["distance"] > 0]
         df_matches = df_filtered[df_filtered["opposition_code"].notna()]
         df_trainings = df_filtered[df_filtered["opposition_code"].isna()]
 
-        overview_tab, match_tab, training_tab, cluster_tab = st.tabs(
-            ["Overview", "Matches", "Training", "Performance Clusters"]
-        )
+        # Main tabs
+        tabs = st.tabs(["Overview", "Match Analysis", "Training Analysis"])
 
-        # Overview tab
-        with overview_tab:
-            st.header("Overall Performance Metrics")
+        # OVERVIEW TAB
+        with tabs[0]:
+            st.header("Performance Summary")
 
-            # Display KPIs
+            # Key metrics in 2 columns
             col1, col2 = st.columns(2)
 
             with col1:
-                st.subheader("Match Statistics")
                 match_kpis = general_kpis(df_matches)
+                st.subheader("Match Statistics")
                 st.metric(
-                    "Total Sessions",
-                    f"{int(match_kpis['number_of_sessions'])}",
+                    "Total Matches", f"{int(match_kpis['number_of_sessions'])}"
                 )
                 st.metric(
                     "Total Distance",
                     f"{match_kpis['total_distance_km']:.1f} km",
                 )
                 st.metric(
-                    "Avg Peak Speed",
+                    "Peak Speed",
                     f"{match_kpis['average_peak_speed']:.1f} km/h",
                 )
 
             with col2:
-                st.subheader("Training Statistics")
                 training_kpis = general_kpis(df_trainings)
+                st.subheader("Training Statistics")
                 st.metric(
                     "Total Sessions",
                     f"{int(training_kpis['number_of_sessions'])}",
@@ -65,33 +64,24 @@ def show():
                     f"{training_kpis['total_distance_km']:.1f} km",
                 )
                 st.metric(
-                    "Avg Peak Speed",
+                    "Peak Speed",
                     f"{training_kpis['average_peak_speed']:.1f} km/h",
                 )
 
-            st.subheader("Distance Distribution by Duration")
+            # Simple distribution chart
+            st.subheader("Distance by Duration")
             st.plotly_chart(
                 plot_distance_distribution_by_duration(df_filtered),
                 use_container_width=True,
             )
 
-            st.subheader("Recovery Analysis")
-            st.plotly_chart(
-                plot_average_distances_histogram_plotly(df_filtered),
-                use_container_width=True,
-            )
+        # MATCH ANALYSIS TAB
+        with tabs[1]:
+            st.header("Match Performance")
 
-        with match_tab:
-            st.header("Match Performance Analysis")
-
-            # Performance by match time
-            st.subheader("Performance Metrics by Match Duration")
-
-            # Get all three figures from stats_vs_match_time
-            fig_distance, fig_accel, fig_hr = stats_vs_match_time(df_matches)
-
+            # Performance by match time - simplified to one metric at a time
             metric_option = st.selectbox(
-                "Select metric to display",
+                "Select metric",
                 [
                     "Distance Coverage",
                     "Acceleration/Deceleration",
@@ -99,72 +89,64 @@ def show():
                 ],
             )
 
+            """
+            fig_distance, fig_accel, fig_hr = stats_vs_match_time(df_matches)
+
             if metric_option == "Distance Coverage":
                 st.plotly_chart(fig_distance, use_container_width=True)
             elif metric_option == "Acceleration/Deceleration":
                 st.plotly_chart(fig_accel, use_container_width=True)
             else:
                 st.plotly_chart(fig_hr, use_container_width=True)
-
-            # Specific match analysis
-            st.subheader("Individual Match Analysis")
-
+            """
+            # Individual match analysis with radar chart
+            st.subheader("Match Details")
             available_dates = (
                 df_matches["date"].dt.strftime("%d/%m/%Y").unique()
             )
+
             if len(available_dates) > 0:
                 selected_date = st.selectbox(
                     "Select Match Date", available_dates
                 )
                 radar_chart = plot_radar_chart(df_filtered, selected_date)
+
                 if radar_chart:
                     st.plotly_chart(radar_chart, use_container_width=True)
                 else:
-                    st.warning("No data available for the selected date.")
+                    st.info("No data available for the selected date.")
             else:
-                st.warning("No matches available in the selected date range.")
+                st.info("No matches available.")
 
-        with training_tab:
-            st.header("Training Performance Analysis")
+        # TRAINING ANALYSIS TAB
+        with tabs[2]:
+            st.header("Training & Performance Clusters")
 
-            # Add training specific visualizations here
-            st.subheader("Training Distance Distribution")
+            # Training distribution
+            st.subheader("Training Distance")
             st.plotly_chart(
                 plot_distance_distribution_by_duration(df_trainings),
                 use_container_width=True,
             )
 
-        with cluster_tab:
-            st.header("Performance Clustering Analysis")
-
-            # Clustering features
+            # Simplified clustering
             st.subheader("Performance Clusters")
 
+            # Select only essential features for clustering
             cluster_features = [
                 "distance",
-                "distance_over_21",
                 "distance_over_24",
-                "distance_over_27",
-                "accel_decel_over_2_5",
                 "accel_decel_over_3_5",
-                "accel_decel_over_4_5",
                 "peak_speed",
-                "hr_zone_1_hms",
-                "hr_zone_2_hms",
-                "hr_zone_3_hms",
                 "hr_zone_4_hms",
-                "hr_zone_5_hms",
             ]
 
-            # Apply clustering
+            # Apply clustering with fewer features
             df_training_with_clusters, df_matches_with_clusters = (
-                cluster_performance(
-                    df_trainings,
-                    df_matches,
-                    cluster_features,
-                )
+                cluster_performance(df_trainings, df_matches, cluster_features)
             )
 
+            # Combine for timeline analysis
             df_matches_with_clusters["type"] = "Match"
             df_training_with_clusters["type"] = "Training"
             df_combined = pd.concat(
@@ -178,62 +160,32 @@ def show():
                 ]
             ).sort_values(by="date")
 
+            # Simple feature selection
             col1, col2 = st.columns(2)
             with col1:
                 x_feature = st.selectbox(
-                    "Select X-axis feature", cluster_features, index=0
+                    "X-axis feature", cluster_features, index=0
                 )
             with col2:
                 y_feature = st.selectbox(
-                    "Select Y-axis feature", cluster_features, index=7
-                )  # peak_speed as default
+                    "Y-axis feature", cluster_features, index=3
+                )
 
+            # Plot clusters
             st.plotly_chart(
                 plot_cluster(df_training_with_clusters, x_feature, y_feature),
                 use_container_width=True,
             )
 
-            st.subheader("Performance States Over Time")
-
+            # Performance timeline
+            st.subheader("Performance Timeline")
             seasons = df_combined["season"].unique()
-            selected_season = st.selectbox("Select Season", seasons)
-
-            st.plotly_chart(
-                plot_player_state(df_combined, season=selected_season),
-                use_container_width=True,
-            )
-
-            st.subheader("Custom Time Period Analysis")
-            col1, col2 = st.columns(2)
-            with col1:
-                custom_start = st.date_input(
-                    "Custom Start Date",
-                    value=df_combined["date"].min().date(),
-                    min_value=df_combined["date"].min().date(),
-                    max_value=df_combined["date"].max().date(),
+            if len(seasons) > 0:
+                selected_season = st.selectbox("Select Season", seasons)
+                st.plotly_chart(
+                    plot_player_state(df_combined, season=selected_season),
+                    use_container_width=True,
                 )
-            with col2:
-                custom_end = st.date_input(
-                    "Custom End Date",
-                    value=df_combined["date"].max().date(),
-                    min_value=df_combined["date"].min().date(),
-                    max_value=df_combined["date"].max().date(),
-                )
-
-            # Convert to string format required by the function
-            custom_start_str = custom_start.strftime("%d/%m/%Y")
-            custom_end_str = custom_end.strftime("%d/%m/%Y")
-
-            custom_view = plot_player_state(
-                df_combined,
-                start_date=custom_start_str,
-                end_date=custom_end_str,
-            )
-
-            if custom_view:
-                st.plotly_chart(custom_view, use_container_width=True)
-            else:
-                st.warning("No data available for the selected time period.")
 
     except Exception as e:
         st.error(f"An error occurred: {e}")

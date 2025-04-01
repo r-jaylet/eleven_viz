@@ -8,6 +8,7 @@ import streamlit as st
 def load_gps(
     file_path: str = "data/players_data/marc_cucurella/CFC GPS Data.csv",
     encoding: str = "ISO-8859-1",
+    season: str = "2023/2024",
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Load and preprocess GPS tracking data for training and matches.
@@ -24,7 +25,7 @@ def load_gps(
     df = pd.read_csv(file_path, encoding=encoding)
 
     df["date"] = pd.to_datetime(df["date"], format="%d/%m/%Y")
-
+    df = df[df["season"] == season]
     # Define heart rate zone columns
     hr_columns = [
         "hr_zone_1_hms",
@@ -58,6 +59,7 @@ def load_gps(
 
 def load_physical_capabilities(
     file_path: str = "data/players_data/marc_cucurella/CFC Physical Capability Data.csv",
+    season: str = "2023/2024",
 ) -> pd.DataFrame:
     """
     Load and preprocess physical capabilities assessment data.
@@ -74,6 +76,13 @@ def load_physical_capabilities(
     df["testDate"] = pd.to_datetime(df["testDate"], format="%d/%m/%Y")
     df["benchmarkPct"] = pd.to_numeric(df["benchmarkPct"], errors="coerce")
 
+    if season == "2023/2024":
+        df = df.loc[
+            (df["testDate"] >= pd.Timestamp("01/07/2023"))
+            & (df["testDate"] <= pd.Timestamp("30/06/2024"))
+        ]
+    elif season == "2024/2025":
+        df = df.loc[df["testDate"] >= pd.Timestamp("01/07/2024")]
     df = df.sort_values("testDate")
 
     return df
@@ -81,6 +90,7 @@ def load_physical_capabilities(
 
 def load_recovery_status(
     file_path: str = "data/players_data/marc_cucurella/CFC Recovery status Data.csv",
+    season: str = "2023/2024",
 ) -> pd.DataFrame:
     """
     Load and preprocess player recovery status data.
@@ -92,6 +102,7 @@ def load_recovery_status(
         DataFrame with preprocessed recovery status data
     """
     df = pd.read_csv(file_path)
+    df = df[df["seasonName"] == season]
 
     # Convert date strings to datetime objects
     df["sessionDate"] = pd.to_datetime(df["sessionDate"], format="%d/%m/%Y")
