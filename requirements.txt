@@ -1,7 +1,7 @@
 numpy
 pandas
 plotly==5.13.1
-lxml==4.9.2
+lxml
 streamlit==1.43.2
 seaborn
 scikit-learn

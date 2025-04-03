@@ -415,19 +415,7 @@ def plot_cluster(df: pd.DataFrame, x: str, y: str):
 
     return fig
 
-
-def plot_distance_distribution_by_duration(
-    df_filtered: pd.DataFrame,
-) -> Figure:
-    """
-    Plot histogram of distance distribution based on match duration.
-
-    Args:
-        df_filtered: DataFrame containing match data with 'distance' and duration
-
-    Returns:
-        Plotly figure with histogram
-    """
+def plot_distance_distribution_by_duration(df_filtered: pd.DataFrame) -> Figure:
     df_short, df_medium, df_long, _ = get_duration_matches(df_filtered.copy())
 
     df_short["duration_group"] = "<30min"
@@ -436,31 +424,86 @@ def plot_distance_distribution_by_duration(
     df_combined = pd.concat([df_short, df_medium, df_long], ignore_index=True)
 
     color_map = {
-        "<30min": COLORS["primary"],
-        "30-60min": COLORS["secondary"],
-        ">60min": COLORS["accent1"],
+        "<30min": "#1f77b4",     # blue
+        "30-60min": "#2ca02c",   # green
+        ">60min": "#d62728",     # red
     }
 
     fig = px.histogram(
         df_combined,
         x="distance",
         color="duration_group",
-        barmode="overlay",
+        barmode="group",
         color_discrete_map=color_map,
-        opacity=0.75,
-        template=TEMPLATE,
-        labels={"distance": "Distance (meters)", "duration_group": "Duration"},
+        opacity=0.85,
+        nbins=30,
+        template="plotly_dark",
+        labels={"distance": "Distance (meters)", "duration_group": "Match Duration"},
     )
+
+    # --- Calculate mean & median per group ---
+    stats = df_combined.groupby("duration_group")["distance"].agg(["mean", "median"]).reset_index()
+
+    # --- Add vertical lines for each group ---
+    colors = {
+        "<30min": color_map["<30min"],
+        "30-60min": color_map["30-60min"],
+        ">60min": color_map[">60min"],
+    }
+
+    for _, row in stats.iterrows():
+        group = row["duration_group"]
+        mean_val = row["mean"]
+        median_val = row["median"]
+
+        fig.add_vline(
+            x=mean_val,
+            line=dict(color=colors[group], dash="dash", width=2),
+            annotation_text=f"{group} Mean",
+            annotation_position="top",
+            opacity=0.8,
+        )
+        fig.add_vline(
+            x=median_val,
+            line=dict(color=colors[group], dash="solid", width=1.5),
+            annotation_text=f"{group} Median",
+            annotation_position="bottom",
+            opacity=0.6,
+        )
 
     fig.update_layout(
-        xaxis_title={"text": "Distance (meters)", "font": {"size": 14}},
-        yaxis_title={"text": "Count", "font": {"size": 14}},
-        legend_title={"text": "Match Duration", "font": {"size": 14}},
-        margin=COMMON_MARGINS,
+        xaxis=dict(
+            title="Distance (meters)",
+            title_font=dict(size=16),
+            tickformat=",",
+            gridcolor='rgba(255,255,255,0.1)'
+        ),
+        yaxis=dict(
+            title="Count",
+            title_font=dict(size=16),
+            gridcolor='rgba(255,255,255,0.1)'
+        ),
+        legend=dict(
+            title="Match Duration",
+            font=dict(size=13),
+            bgcolor='rgba(0,0,0,0)',
+            bordercolor='gray',
+            borderwidth=1
+        ),
+        margin=dict(l=60, r=40, t=60, b=60),
+        bargap=0.15,
+        bargroupgap=0.05,
+        title=dict(
+            text="Distance by Duration",
+            x=0.01,
+            xanchor='left',
+            font=dict(size=22)
+        ),
     )
 
-    return fig
+    fig.update_traces(marker_line_width=0.3)
 
+    return fig
 
 def plot_player_state(
     df: pd.DataFrame,
