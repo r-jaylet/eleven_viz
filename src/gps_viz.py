@@ -8,6 +8,7 @@ from plotly.graph_objects import Figure
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from matplotlib.colors import to_rgba
+import matplotlib.pyplot as plt
 
 # Consistent color palette
 COLORS = {
@@ -675,37 +676,166 @@ def plot_radar_chart(df: pd.DataFrame, date_str: str) -> Optional[go.Figure]:
     return fig
 
 
-def plot_avg_hr_zones(df: pd.DataFrame, date_str: str) -> Optional[go.Figure]:
-    """
-    Plot a bar chart showing the average time spent in each heart rate zone across the dataset.
+def convert_hms_to_minutes(hms) -> float:
+    if isinstance(hms, str):
+        try:
+            h, m, s = map(int, hms.strip().split(":"))
+            return h * 60 + m + s / 60
+        except:
+            return 0
+    elif isinstance(hms, (int, float)):
+        return hms / 60  # value already in seconds
+    elif hasattr(hms, 'hour'):
+        return hms.hour * 60 + hms.minute + hms.second / 60
+    return 0
 
-    Args:
-        df: DataFrame containing HR zone columns in hh:mm:ss format.
-    """
+'''
+def plot_avg_hr_zones(df: pd.DataFrame) -> Optional[go.Figure]:
     hr_zones = [
         "hr_zone_1_hms", "hr_zone_2_hms", "hr_zone_3_hms",
         "hr_zone_4_hms", "hr_zone_5_hms"
     ]
 
-    hr_minutes = df[hr_zones].applymap(convert_hms_to_minutes)
+    if df.empty or df[hr_zones].isnull().all().all():
+        return None
+    
+    # Always apply conversion (ensures safety across calls)
+    df_converted = df[hr_zones].applymap(convert_hms_to_minutes)
 
-    avg_minutes = hr_minutes.mean().round(1)
+    if df_converted.isnull().all().all() or df_converted.sum().sum() == 0:
+        return None
 
-    zone_labels = [zone.replace("_hms", "").replace("_", " ").title() for zone in hr_zones]
+    avg_minutes = df_converted.mean().round(1)
+    zone_labels = [z.replace("_hms", "").replace("_", " ").title() for z in hr_zones]
 
-    plt.figure(figsize=(10, 6))
-    bars = plt.bar(zone_labels, avg_minutes, color="skyblue", edgecolor="black")
+    fig = go.Figure(data=[
+        go.Bar(
+            x=zone_labels,
+            y=avg_minutes,
+            text=[f"{v} min" for v in avg_minutes],
+            textposition="outside",
+            marker=dict(color="lightblue", line=dict(color="black", width=1))
+        )
+    ])
 
-    for bar in bars:
-        yval = bar.get_height()
-        plt.text(bar.get_x() + bar.get_width()/2.0, yval + 0.5, f"{yval:.1f} min", ha='center', va='bottom')
+    fig.update_layout(
+        title="Average Time Spent in Heart Rate Zones",
+        xaxis_title="Heart Rate Zones",
+        yaxis_title="Time (minutes)",
+        yaxis=dict(gridcolor="lightgrey"),
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=60, b=40),
+        height=450
+    )
 
-    plt.title("Average Time Spent in Heart Rate Zones")
-    plt.xlabel("Heart Rate Zones")
-    plt.ylabel("Time (minutes)")
-    plt.grid(axis='y', linestyle='--', alpha=0.7)
-    plt.tight_layout()
-    plt.show()
+    return fig
+'''
+
+import plotly.graph_objects as go
+
+def plot_avg_hr_zones(df: pd.DataFrame) -> Optional[go.Figure]:
+    hr_zones = [
+        "hr_zone_1_hms", "hr_zone_2_hms", "hr_zone_3_hms",
+        "hr_zone_4_hms", "hr_zone_5_hms"
+    ]
+
+    if df.empty or df[hr_zones].isnull().all().all():
+        return None
+
+    # Robust conversion
+    df_copy = df[hr_zones].copy()
+    for col in hr_zones:
+        df_copy[col] = df_copy[col].apply(convert_hms_to_minutes)
+
+    if df_copy.sum().sum() == 0:
+        return None
+
+    avg_minutes = df_copy.mean().round(1)
+
+    zone_labels = ["Zone 1\n(Recovery)", "Zone 2\nEndurance", "Zone 3\nTempo",
+                   "Zone 4\nThreshold", "Zone 5\nMax Effort"]
+
+    colors = ["#AEDFF7", "#7EC8E3", "#4AAFE0", "#1C91D4", "#0B63B1"]
+
+    fig = go.Figure(data=[
+        go.Bar(
+            x=zone_labels,
+            y=avg_minutes,
+            text=[f"{v} min" for v in avg_minutes],
+            textposition="outside",
+            hovertemplate="Time in %{x}: <b>%{y:.1f} min</b><extra></extra>",
+            marker=dict(
+                color=colors,
+                line=dict(width=1.5, color='black')
+            )
+        )
+    ])
+
+    fig.update_layout(
+        title="⏱️ Average Time Spent in Heart Rate Zones",
+        xaxis_title="Heart Rate Zones",
+        yaxis_title="Time (minutes)",
+        yaxis=dict(gridcolor="rgba(200,200,200,0.2)"),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(size=14),
+        margin=dict(t=60, b=60, l=40, r=40),
+        height=500
+    )
+
+    return fig
+
+
+def plot_peak_speed_per_match(df: pd.DataFrame) -> Optional[go.Figure]:
+    """
+    Plot a bar chart showing peak speed (km/h) for each match date.
+
+    Args:
+        df: DataFrame with 'date', 'opposition_code', and 'peak_speed'
+
+    Returns:
+        A Plotly figure or None if data is missing
+    """
+    if df.empty or "peak_speed" not in df.columns:
+        return None
+
+    df = df.copy()
+    df["date"] = pd.to_datetime(df["date"], dayfirst=True)
+    df_match = df[df["opposition_code"].notna()].copy()
+
+    if df_match.empty:
+        return None
+
+    df_match = df_match.sort_values("date")
+    df_match["match_date"] = df_match["date"].dt.strftime("%d %b %Y")
+
+    fig = px.bar(
+        df_match,
+        x="match_date",
+        y="peak_speed",
+        labels={"peak_speed": "Peak Speed (km/h)", "match_date": "Match Date"},
+        title="Peak Speed per Match",
+        color="peak_speed",
+        color_continuous_scale="Blues",
+        text="peak_speed"
+    )
+
+    fig.update_traces(texttemplate="%{text:.1f} km/h", textposition="outside")
+    fig.update_layout(
+        xaxis_tickangle=-45,
+        yaxis=dict(
+            title="Peak Speed (km/h)",
+            range=[25, df_match["peak_speed"].max() + 1],  # <- Y-axis starts at 25
+            tick0=25,
+            dtick=1,
+            gridcolor="rgba(220,220,220,0.3)"
+        ),
+        plot_bgcolor="rgba(0,0,0,0)",
+        height=450,
+        margin=dict(t=60, b=80)
+    )
+
+    return fig
 
 
 def stats_vs_match_time(df: pd.DataFrame) -> Tuple[Figure, Figure, Figure]:

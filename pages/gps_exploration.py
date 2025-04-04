@@ -1,5 +1,7 @@
 import pandas as pd
 import streamlit as st
+import matplotlib.pyplot as plt
+
 
 from src.data_preprocessing import load_gps
 from src.gps_viz import (
@@ -11,6 +13,8 @@ from src.gps_viz import (
     plot_player_state,
     plot_radar_chart,
     stats_vs_match_time,
+    plot_avg_hr_zones, 
+    plot_peak_speed_per_match
 )
 
 
@@ -118,17 +122,22 @@ def show():
             else:
                 st.info("No matches available.")
 
-            # Bar chart : average time spent in each time zone for the selected date : 
+            # Bar chart : average time spent in each heart rate zone for the selected date : 
             st.subheader("Match Details : Heart Rate Zones")
             available_dates = (
                 df_matches["date"].dt.strftime("%d/%m/%Y").unique()
             )
 
             if len(available_dates) > 0:
-                selected_date = st.selectbox(
+                selected_date_str = st.selectbox(
                     "Select Match Date", available_dates, key="match_date_selectbox"
                 )
-                heart_rate_bar_chart = plot_avg_hr_zones(df_filtered, selected_date)
+
+                # Convert to datetime and filter again!
+                selected_date = pd.to_datetime(selected_date_str, format="%d/%m/%Y")
+                df_hr_filtered = df_matches[df_matches["date"] == selected_date].copy()
+
+                heart_rate_bar_chart = plot_avg_hr_zones(df_hr_filtered)
 
                 if heart_rate_bar_chart:
                     st.plotly_chart(heart_rate_bar_chart, use_container_width=True)
@@ -136,6 +145,16 @@ def show():
                     st.info("No data available for the selected date.")
             else:
                 st.info("No matches available.")
+
+            # Bar chart: Peak speed per match
+            st.subheader("Match Details : Peak Speed")
+
+            peak_speed_chart = plot_peak_speed_per_match(df_matches)
+
+            if peak_speed_chart:
+                st.plotly_chart(peak_speed_chart, use_container_width=True)
+            else:
+                st.info("No peak speed data available for match dates.")
 
         # TRAINING ANALYSIS TAB
         with tabs[2]:
