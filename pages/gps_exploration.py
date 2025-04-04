@@ -118,6 +118,25 @@ def show():
             else:
                 st.info("No matches available.")
 
+            # Bar chart : average time spent in each time zone for the selected date : 
+            st.subheader("Match Details : Heart Rate Zones")
+            available_dates = (
+                df_matches["date"].dt.strftime("%d/%m/%Y").unique()
+            )
+
+            if len(available_dates) > 0:
+                selected_date = st.selectbox(
+                    "Select Match Date", available_dates, key="match_date_selectbox"
+                )
+                heart_rate_bar_chart = plot_avg_hr_zones(df_filtered, selected_date)
+
+                if heart_rate_bar_chart:
+                    st.plotly_chart(heart_rate_bar_chart, use_container_width=True)
+                else:
+                    st.info("No data available for the selected date.")
+            else:
+                st.info("No matches available.")
+
         # TRAINING ANALYSIS TAB
         with tabs[2]:
             st.header("Training & Performance Clusters")

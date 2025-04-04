@@ -7,6 +7,7 @@ import seaborn as sns
 from plotly.graph_objects import Figure
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+from matplotlib.colors import to_rgba
 
 # Consistent color palette
 COLORS = {
@@ -568,8 +569,7 @@ def plot_player_state(
 
     return fig
 
-
-def plot_radar_chart(df: pd.DataFrame, date_str: str) -> Optional[Figure]:
+def plot_radar_chart(df: pd.DataFrame, date_str: str) -> Optional[go.Figure]:
     """
     Display radar chart with metrics for a given date.
 
@@ -581,97 +581,131 @@ def plot_radar_chart(df: pd.DataFrame, date_str: str) -> Optional[Figure]:
         Plotly figure with radar chart or None if no data
     """
     date_obj = pd.to_datetime(date_str, format="%d/%m/%Y")
-
     df_filtered = df[df["date"] == date_obj].copy()
     if df_filtered.empty:
         print(f"No data found for the date {date_str}")
         return None
 
     metrics = [
-        "distance",
-        "distance_over_21",
-        "distance_over_24",
-        "distance_over_27",
-        "accel_decel_over_2_5",
-        "accel_decel_over_3_5",
-        "accel_decel_over_4_5",
-        "day_duration",
-        "peak_speed",
+        "distance", "distance_over_21", "distance_over_24", "distance_over_27",
+        "accel_decel_over_2_5", "accel_decel_over_3_5", "accel_decel_over_4_5",
+        "day_duration", "peak_speed",
     ]
 
     hr_metrics = [
-        "hr_zone_1_hms",
-        "hr_zone_2_hms",
-        "hr_zone_3_hms",
-        "hr_zone_4_hms",
-        "hr_zone_5_hms",
+        "hr_zone_1_hms", "hr_zone_2_hms", "hr_zone_3_hms",
+        "hr_zone_4_hms", "hr_zone_5_hms"
     ]
+
+    # Units mapping
+    units = {
+        "distance": "m",
+        "distance_over_21": "m",
+        "distance_over_24": "m",
+        "distance_over_27": "m",
+        "accel_decel_over_2_5": "count",
+        "accel_decel_over_3_5": "count",
+        "accel_decel_over_4_5": "count",
+        "day_duration": "min",
+        "peak_speed": "km/h",
+        "hr_zone_1_hms": "min",
+        "hr_zone_2_hms": "min",
+        "hr_zone_3_hms": "min",
+        "hr_zone_4_hms": "min",
+        "hr_zone_5_hms": "min",
+    }
+
+    # Convert HR zones to minutes
     for col in hr_metrics:
         df_filtered[col] = df_filtered[col].apply(convert_hms_to_minutes)
-
-    for col in hr_metrics:
         df[col] = df[col].apply(convert_hms_to_minutes)
 
     metrics += hr_metrics
     df[metrics] = df[metrics].apply(pd.to_numeric, errors="coerce")
-
-    scale_factors = {metric: df[metric].max() for metric in metrics}
     df_filtered[metrics] = df_filtered[metrics].fillna(0)
 
+    scale_factors = {metric: df[metric].max() or 1 for metric in metrics}
     scaled_values = [
-        (
-            (df_filtered.iloc[0][metric] / scale_factors[metric])
-            if scale_factors[metric] > 0
-            else 0
-        )
-        for metric in metrics
+        df_filtered.iloc[0][metric] / scale_factors[metric] for metric in metrics
     ]
 
-    # Prettier metric labels
-    metric_labels = [m.replace("_", " ").title() for m in metrics]
+    # Add unit to label
+    metric_labels = [
+        f"{m.replace('_', ' ').replace('Hms', '').title()} ({units[m]})" for m in metrics
+    ]
+
+    rgba_primary = "rgba(31, 119, 180, 0.6)"
+    line_color = "rgba(31, 119, 180, 1)"
 
     fig = go.Figure()
 
-    fig.add_trace(
-        go.Scatterpolar(
-            r=scaled_values,
-            theta=metric_labels,
-            fill="toself",
-            name=f"Performance on {date_str}",
-            text=[
-                f"{int(round(v))}" if metric not in hr_metrics else f"{v:.1f}"
-                for metric, v in zip(
-                    metrics, df_filtered.iloc[0][metrics].values
-                )
-            ],
-            textposition="top center",
-            mode="lines+text",
-            textfont=dict(size=10, color="#FFFFFF"),
-            line=dict(color=COLORS["primary"], width=2),
-            fillcolor=f"rgba{tuple(int(COLORS['primary'][i:i+2], 16) for i in (1, 3, 5)) + (0.5,)}",
-        )
-    )
+    fig.add_trace(go.Scatterpolar(
+        r=scaled_values,
+        theta=metric_labels,
+        fill='toself',
+        name=f"Performance on {date_str}",
+        hoverinfo='text',
+        text=[
+            f"{label}: {val:.1f} {units[m]}" if m in hr_metrics else f"{label}: {int(val)} {units[m]}"
+            for label, val, m in zip(metric_labels, df_filtered.iloc[0][metrics].values, metrics)
+        ],
+        line=dict(color=line_color, width=2),
+        fillcolor=rgba_primary
+    ))
 
     fig.update_layout(
         polar=dict(
-            radialaxis=dict(
-                visible=True,
-                showticklabels=False,
-                gridcolor="rgba(240, 240, 240, 0.3)",
-            ),
+            radialaxis=dict(visible=False),
             angularaxis=dict(
-                visible=True,
-                gridcolor="rgba(240, 240, 240, 0.3)",
-                linecolor="rgba(240, 240, 240, 0.3)",
+                tickfont=dict(size=10),
+                rotation=90,
+                direction="clockwise"
             ),
-            bgcolor="rgba(248, 248, 248, 0.5)",
         ),
-        template=TEMPLATE,
+        template='plotly_dark',
         showlegend=False,
-        margin=dict(l=80, r=80, t=100, b=50),
+        title=dict(
+            text=f"Radar Chart: {date_str}",
+            font=dict(size=16),
+            x=0.5
+        ),
+        margin=dict(t=80, b=50, l=60, r=60)
     )
 
     return fig
+
+
+def plot_avg_hr_zones(df: pd.DataFrame, date_str: str) -> Optional[go.Figure]:
+    """
+    Plot a bar chart showing the average time spent in each heart rate zone across the dataset.
+
+    Args:
+        df: DataFrame containing HR zone columns in hh:mm:ss format.
+    """
+    hr_zones = [
+        "hr_zone_1_hms", "hr_zone_2_hms", "hr_zone_3_hms",
+        "hr_zone_4_hms", "hr_zone_5_hms"
+    ]
+
+    hr_minutes = df[hr_zones].applymap(convert_hms_to_minutes)
+
+    avg_minutes = hr_minutes.mean().round(1)
+
+    zone_labels = [zone.replace("_hms", "").replace("_", " ").title() for zone in hr_zones]
+
+    plt.figure(figsize=(10, 6))
+    bars = plt.bar(zone_labels, avg_minutes, color="skyblue", edgecolor="black")
+
+    for bar in bars:
+        yval = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width()/2.0, yval + 0.5, f"{yval:.1f} min", ha='center', va='bottom')
+
+    plt.title("Average Time Spent in Heart Rate Zones")
+    plt.xlabel("Heart Rate Zones")
+    plt.ylabel("Time (minutes)")
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    plt.show()
 
 
 def stats_vs_match_time(df: pd.DataFrame) -> Tuple[Figure, Figure, Figure]:
