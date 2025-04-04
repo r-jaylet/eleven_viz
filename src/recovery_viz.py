@@ -489,7 +489,7 @@ def plot_global_recovery_score(
             y=df_total["rolling_mean"],
             mode="lines",
             name=f"{window_size}-day Moving Average",
-            line=dict(color=COLORS["secondary"], width=2.5),
+            line=dict(color="#FFA500", width=4.5),
         )
     )
 
@@ -630,5 +630,58 @@ def plot_recovery_metrics_by_category(
                 row=i,
                 col=j,
             )
+
+    return fig
+
+
+def plot_weekly_recovery_heatmap(df: pd.DataFrame) -> go.Figure:
+    """
+    Plots a weekly heatmap of recovery scores for a single player.
+    Rows = Weeks (e.g. 2024-W14), Columns = Days of the week.
+    Color = Mean recovery score.
+
+    Parameters:
+    - df: DataFrame containing 'sessionDate', 'metric', and 'value' columns.
+    Returns:
+    - Plotly Figure object.
+    """
+    df = df[df["metric"] == "emboss_baseline_score"]
+    df["sessionDate"] = pd.to_datetime(df["sessionDate"], format="%d/%m/%Y")
+
+    # Add weekday and week labels
+    df["weekday"] = df["sessionDate"].dt.day_name()
+    df["weekday_num"] = df["sessionDate"].dt.weekday
+    df["week"] = df["sessionDate"].dt.isocalendar().week
+    df["year"] = df["sessionDate"].dt.isocalendar().year
+    df["week_label"] = df["year"].astype(str) + "-W" + df["week"].astype(str)
+
+    # Pivot for heatmap
+    pivot_df = df.pivot_table(
+        index="week_label",
+        columns="weekday",
+        values="value",
+        aggfunc="mean"
+    )
+
+    # Reorder weekdays
+    weekday_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    pivot_df = pivot_df.reindex(columns=weekday_order)
+
+    # Build heatmap
+    fig = go.Figure(data=go.Heatmap(
+        z=pivot_df.values,
+        x=pivot_df.columns.tolist(),
+        y=pivot_df.index.tolist(),
+        colorscale='RdYlGn',
+        colorbar=dict(title="Recovery Score")
+    ))
+
+    fig.update_layout(
+        title="Weekly Recovery Heatmap (Single Player)",
+        xaxis_title="Day of Week",
+        yaxis_title="Week",
+        template="plotly_dark",
+        height=600
+    )
 
     return fig

@@ -8,6 +8,7 @@ from src.recovery_viz import (
     create_correlation_heatmap,
     plot_global_recovery_score,
     plot_recovery_metrics_by_category,
+    plot_weekly_recovery_heatmap
 )
 
 
@@ -121,6 +122,11 @@ def show():
                     corr_matrix = pivot_df[valid_cols].corr()
                     fig = create_correlation_heatmap(corr_matrix)
                     st.plotly_chart(fig, use_container_width=True)
+            
+            # Weekly recovery heatmap
+            st.subheader("Weekly recovery heatmap")
+            weekly_heatmap = plot_weekly_recovery_heatmap(df)
+            st.plotly_chart(weekly_heatmap, use_container_width=True)
 
     except FileNotFoundError:
         st.error("Recovery data file not found")
