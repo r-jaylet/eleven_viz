@@ -166,6 +166,49 @@ def create_movement_pie_chart(df: pd.DataFrame) -> Figure:
     )
     return fig
 
+def create_movement_over_time_chart(df: pd.DataFrame) -> Figure:
+    """Create stacked bar chart showing movement type distribution over months."""
+    # Convert to month and year (e.g., '2024-03')
+    df["month"] = df["testDate"].dt.to_period("M").astype(str)
+
+    # Group by month and movement type
+    monthly_counts = df.groupby(["month", "movement"]).size().reset_index(name="count")
+
+    # Sort months properly
+    monthly_counts["month"] = pd.to_datetime(monthly_counts["month"])
+    monthly_counts = monthly_counts.sort_values("month")
+    monthly_counts["month"] = monthly_counts["month"].dt.strftime("%b %Y")  # e.g., 'Mar 2024'
+
+    fig = px.bar(
+        monthly_counts,
+        x="month",
+        y="count",
+        color="movement",
+        template=TEMPLATE,
+        color_discrete_sequence=QUALITATIVE_PALETTE,
+        labels={
+            "month": "Month",
+            "count": "Number of Tests",
+            "movement": "Movement Type",
+        },
+    )
+
+    fig.update_layout(
+        barmode="stack",
+        xaxis_title={"text": "Test Month", "font": {"size": 14}},
+        yaxis_title={"text": "Number of Tests", "font": {"size": 14}},
+        margin=COMMON_MARGINS,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=12),
+        ),
+    )
+
+    return fig
 
 def create_movement_quality_heatmap(df: pd.DataFrame) -> Figure:
     """Create heatmap showing relationship between movement types and quality."""
@@ -248,6 +291,67 @@ def create_movement_performance_chart(df: pd.DataFrame) -> Figure:
     return fig
 
 
+def create_movement_trend_chart(df: pd.DataFrame) -> Figure:
+    """Create line chart showing movement performance trends over the last 5 months."""
+    # Ensure testDate is datetime
+    df["testDate"] = pd.to_datetime(df["testDate"])
+
+    # Filter to last 5 full calendar months
+    latest_date = df["testDate"].max()
+    five_months_ago = latest_date - pd.DateOffset(months=5)
+    df_recent = df[df["testDate"] >= five_months_ago].copy()
+
+    # Extract month in Year-Month format
+    df_recent["month"] = df_recent["testDate"].dt.to_period("M").astype(str)
+
+    # Group by month and movement
+    trend_data = (
+        df_recent.groupby(["month", "movement"])["benchmarkPct"]
+        .mean()
+        .reset_index()
+    )
+
+    # Sort months for proper display
+    trend_data["month"] = pd.to_datetime(trend_data["month"])
+    trend_data = trend_data.sort_values("month")
+    trend_data["month"] = trend_data["month"].dt.strftime("%b %Y")
+
+    # Create line plot
+    fig = px.line(
+        trend_data,
+        x="month",
+        y="benchmarkPct",
+        color="movement",
+        markers=True,
+        template=TEMPLATE,
+        color_discrete_sequence=QUALITATIVE_PALETTE,
+        labels={
+            "month": "Month",
+            "benchmarkPct": "Avg Benchmark Percentile",
+            "movement": "Movement Type",
+        },
+    )
+
+    fig.update_layout(
+        title="Movement Performance Trends (Last 5 Months)",
+        xaxis_title={"text": "Month", "font": {"size": 14}},
+        yaxis_title={"text": "Benchmark Percentile", "font": {"size": 14}},
+        yaxis=dict(range=[0, 1]),
+        margin=COMMON_MARGINS,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=12),
+        ),
+    )
+
+    return fig
+
+
+'''
 def create_performance_trend_chart(df: pd.DataFrame) -> Figure:
     """Create line chart showing overall performance trend over time with trend line."""
     filtered_df = df.sort_values("testDate").dropna(subset=["benchmarkPct"])
@@ -310,6 +414,62 @@ def create_performance_trend_chart(df: pd.DataFrame) -> Figure:
             font=dict(size=12),
         ),
     )
+    return fig
+'''
+
+def create_performance_trend_chart(df: pd.DataFrame) -> Figure:
+    """Create improved line chart showing smoothed performance trend over time."""
+    filtered_df = df.sort_values("testDate").dropna(subset=["benchmarkPct"])
+
+    # Daily mean
+    daily_avg = (
+        filtered_df.groupby("testDate")["benchmarkPct"]
+        .mean()
+        .reset_index()
+    )
+    
+    # Smoothed trend (rolling mean)
+    daily_avg["Smoothed"] = daily_avg["benchmarkPct"].rolling(window=3, min_periods=1).mean()
+
+    fig = go.Figure()
+
+    # Raw daily average line
+    fig.add_trace(go.Scatter(
+        x=daily_avg["testDate"],
+        y=daily_avg["benchmarkPct"],
+        mode="lines+markers",
+        name="Daily Avg",
+        line=dict(color="gray", width=1),
+        marker=dict(size=4)
+    ))
+
+    # Smoothed trend line
+    fig.add_trace(go.Scatter(
+        x=daily_avg["testDate"],
+        y=daily_avg["Smoothed"],
+        mode="lines",
+        name="Smoothed Trend",
+        line=dict(color=COLORS["primary"], width=3)
+    ))
+
+    fig.update_layout(
+        title="Performance Trend Over Time",
+        xaxis_title={"text": "Test Date", "font": {"size": 14}},
+        yaxis_title={"text": "Benchmark Percentile", "font": {"size": 14}},
+        yaxis=dict(range=[0, 1]),
+        hovermode="x unified",
+        template=TEMPLATE,
+        margin=COMMON_MARGINS,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=12),
+        )
+    )
+
     return fig
 
 

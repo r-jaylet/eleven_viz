@@ -11,6 +11,8 @@ from src.physical_viz import (
     create_performance_trend_chart,
     detailed_stats_by_movement,
     get_data_for_date,
+    create_movement_over_time_chart, 
+    create_movement_trend_chart
 )
 
 
@@ -75,7 +77,7 @@ def show():
 
             with col1:
                 # Movement distribution pie chart
-                fig_pie = create_movement_pie_chart(df_filtered)
+                fig_pie = create_movement_over_time_chart(df_filtered)
                 st.plotly_chart(fig_pie, use_container_width=True)
 
             with col2:
@@ -97,6 +99,12 @@ def show():
             st.subheader("Movement Performance")
             fig_movement_perf = create_movement_performance_chart(df_filtered)
             st.plotly_chart(fig_movement_perf, use_container_width=True)
+
+            # Performance by movement - over time
+            st.subheader("Movement Performance Trends over the last 5 months")
+            fig_movement_perf_trend = create_movement_trend_chart(df_filtered)
+            st.plotly_chart(fig_movement_perf_trend, use_container_width=True)
+
 
             # Specific date data
             st.subheader("Recent Test Results")
