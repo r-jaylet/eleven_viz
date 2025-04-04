@@ -14,7 +14,8 @@ from src.gps_viz import (
     plot_radar_chart,
     stats_vs_match_time,
     plot_avg_hr_zones, 
-    plot_peak_speed_per_match
+    plot_peak_speed_per_match, 
+    plot_accel_decel_intensity_per_match
 )
 
 
@@ -155,6 +156,16 @@ def show():
                 st.plotly_chart(peak_speed_chart, use_container_width=True)
             else:
                 st.info("No peak speed data available for match dates.")
+            
+            # Bar chart: Acceleration/Deceleration intensity
+            st.subheader("Match Overview : Acceleration & Deceleration Intensity")
+
+            accel_decel_chart = plot_accel_decel_intensity_per_match(df_matches)
+
+            if accel_decel_chart:
+                st.plotly_chart(accel_decel_chart, use_container_width=True)
+            else:
+                st.info("No acceleration/deceleration data available for match dates.")
 
         # TRAINING ANALYSIS TAB
         with tabs[2]:

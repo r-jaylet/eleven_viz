@@ -65,6 +65,43 @@ def average_distances_by_recovery(
     return average_by_recovery
 
 
+def label_clusters_by_distance(df: pd.DataFrame, label_column: str = "distance") -> dict:
+    """
+    Label clusters based on average distance per cluster (higher = better).
+    """
+    means = df.groupby("cluster")[label_column].mean()
+    sorted_clusters = means.sort_values(ascending=False).index.tolist()
+    labels = ["Better performances", "Usual performances", "Lower performances"]
+    return {cluster: labels[i] for i, cluster in enumerate(sorted_clusters)}
+
+def cluster_performance(
+    df_trainings: pd.DataFrame,
+    df_matches: pd.DataFrame,
+    features: List[str],
+    n_clusters: int = 3,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    df_training_copy = df_trainings.copy()
+    df_matches_copy = df_matches.copy()
+
+    scaler = StandardScaler()
+    training_scaled = scaler.fit_transform(df_training_copy[features])
+
+    kmeans_train = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    df_training_copy["cluster"] = kmeans_train.fit_predict(training_scaled)
+    df_training_copy["cluster_label"] = df_training_copy["cluster"].map(
+        label_clusters_by_distance(df_training_copy)
+    )
+
+    match_scaled = scaler.transform(df_matches_copy[features])
+    kmeans_match = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    df_matches_copy["cluster"] = kmeans_match.fit_predict(match_scaled)
+    df_matches_copy["cluster_label"] = df_matches_copy["cluster"].map(
+        label_clusters_by_distance(df_matches_copy)
+    )
+
+    return df_training_copy, df_matches_copy
+
+'''
 def cluster_performance(
     df_trainings: pd.DataFrame,
     df_matches: pd.DataFrame,
@@ -132,7 +169,7 @@ def cluster_performance(
     )
 
     return df_training_copy, df_matches_copy
-
+'''
 
 def convert_hms_to_minutes(hms: str) -> float:
     """
@@ -371,7 +408,7 @@ def plot_average_distances_histogram_plotly(df: pd.DataFrame) -> Figure:
 
     return fig
 
-
+'''
 def plot_cluster(df: pd.DataFrame, x: str, y: str):
     """
     Visualize the clusters of matches based on two given features using Plotly.
@@ -413,6 +450,68 @@ def plot_cluster(df: pd.DataFrame, x: str, y: str):
         legend_title_text="Performance Level",
         font=dict(family="Arial", size=12),
         margin=COMMON_MARGINS,
+    )
+
+    return fig
+'''
+
+def plot_cluster(df: pd.DataFrame, x_feature: str, y_feature: str) -> go.Figure:
+    """
+    Scatter plot with clustering, color-coded labels, and shapes by session type.
+    Adds average lines for both axes.
+    """
+    color_map = {
+        "Better performances": "green",
+        "Usual performances": "yellow",
+        "Lower performances": "red"
+    }
+
+    symbol_map = {
+        "Match": "circle",
+        "Training": "triangle-up"
+    }
+
+    fig = px.scatter(
+        df,
+        x=x_feature,
+        y=y_feature,
+        color="cluster_label",
+        symbol="type",
+        color_discrete_map=color_map,
+        symbol_map=symbol_map,
+        hover_data=["date", "season", "type"],
+        title="Performance Clusters"
+    )
+
+    # Add average lines
+    avg_x = df[x_feature].mean()
+    avg_y = df[y_feature].mean()
+
+    fig.add_shape(
+        type="line",
+        x0=avg_x,
+        x1=avg_x,
+        y0=df[y_feature].min(),
+        y1=df[y_feature].max(),
+        line=dict(color="gray", dash="dash"),
+    )
+
+    fig.add_shape(
+        type="line",
+        x0=df[x_feature].min(),
+        x1=df[x_feature].max(),
+        y0=avg_y,
+        y1=avg_y,
+        line=dict(color="gray", dash="dash"),
+    )
+
+    fig.update_layout(
+        xaxis_title=x_feature.replace("_", " ").title(),
+        yaxis_title=y_feature.replace("_", " ").title(),
+        legend_title="Performance Level",
+        plot_bgcolor="rgba(0,0,0,0)",
+        height=500,
+        margin=dict(t=60, b=60)
     )
 
     return fig
@@ -507,6 +606,7 @@ def plot_distance_distribution_by_duration(df_filtered: pd.DataFrame) -> Figure:
 
     return fig
 
+'''
 def plot_player_state(
     df: pd.DataFrame,
     season: Optional[str] = None,
@@ -569,6 +669,71 @@ def plot_player_state(
     )
 
     return fig
+'''
+
+def plot_player_state(
+    df: pd.DataFrame,
+    season: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> Optional[Figure]:
+    """
+    Timeline showing performance clusters over time with cluster as y-axis.
+    """
+    if season:
+        df_filtered = df[df["season"] == season].copy()
+    elif start_date and end_date:
+        df_filtered = df[(df["date"] >= start_date) & (df["date"] <= end_date)].copy()
+    else:
+        return None
+
+    if df_filtered.empty:
+        return None
+
+    df_filtered["date"] = pd.to_datetime(df_filtered["date"])
+
+    # Ensure cluster labels are categorical so they stack nicely
+    df_filtered["cluster_label"] = pd.Categorical(
+        df_filtered["cluster_label"],
+        categories=["Better performances", "Usual performances", "Lower performances"],
+        ordered=True
+    )
+
+    performance_colors = {
+        "Better performances": "green",
+        "Usual performances": "yellow",
+        "Lower performances": "red",
+    }
+
+    symbol_map = {
+        "Match": "circle",
+        "Training": "triangle-up"
+    }
+
+    fig = px.scatter(
+        df_filtered,
+        x="date",
+        y="cluster_label",  # Now y is the performance category
+        color="cluster_label",
+        symbol="type",
+        color_discrete_map=performance_colors,
+        symbol_map=symbol_map,
+        hover_data=["date", "type"],
+        title="📅 Performance Timeline"
+    )
+
+    fig.update_traces(marker=dict(size=10, line=dict(width=1, color="white")))
+    fig.update_layout(
+        xaxis_title="Date",
+        yaxis_title="Performance Level",
+        plot_bgcolor="rgba(0,0,0,0)",
+        legend_title="",
+        height=450,
+        margin=dict(t=50, b=40, l=60, r=40)
+    )
+
+    return fig
+
 
 def plot_radar_chart(df: pd.DataFrame, date_str: str) -> Optional[go.Figure]:
     """
@@ -833,6 +998,74 @@ def plot_peak_speed_per_match(df: pd.DataFrame) -> Optional[go.Figure]:
         plot_bgcolor="rgba(0,0,0,0)",
         height=450,
         margin=dict(t=60, b=80)
+    )
+
+    return fig
+
+import plotly.graph_objects as go
+import pandas as pd
+from typing import Optional
+
+def plot_accel_decel_intensity_per_match(df: pd.DataFrame) -> Optional[go.Figure]:
+    """
+    Plot a grouped bar chart showing counts of acceleration/deceleration efforts over thresholds per match.
+
+    Args:
+        df: DataFrame with match-level data including accel/decel columns
+
+    Returns:
+        Plotly Figure or None if data missing
+    """
+    required_cols = [
+        "date", "opposition_code",
+        "accel_decel_over_2_5",
+        "accel_decel_over_3_5",
+        "accel_decel_over_4_5"
+    ]
+
+    if not all(col in df.columns for col in required_cols):
+        return None
+
+    df = df.copy()
+    df["date"] = pd.to_datetime(df["date"], dayfirst=True)
+    df_match = df[df["opposition_code"].notna()].copy()
+
+    if df_match.empty:
+        return None
+
+    df_match = df_match.sort_values("date")
+    df_match["match_date"] = df_match["date"].dt.strftime("%d %b %Y")
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=df_match["match_date"],
+        y=df_match["accel_decel_over_2_5"],
+        name="> 2.5 m/s²",
+        marker_color="#7FB3D5"
+    ))
+    fig.add_trace(go.Bar(
+        x=df_match["match_date"],
+        y=df_match["accel_decel_over_3_5"],
+        name="> 3.5 m/s²",
+        marker_color="#F4D03F"
+    ))
+    fig.add_trace(go.Bar(
+        x=df_match["match_date"],
+        y=df_match["accel_decel_over_4_5"],
+        name="> 4.5 m/s²",
+        marker_color="#E74C3C"
+    ))
+
+    fig.update_layout(
+        barmode="group",
+        title="Acceleration/Deceleration Intensity per Match",
+        xaxis_title="Match Date",
+        yaxis_title="Effort Count",
+        xaxis_tickangle=-45,
+        height=450,
+        margin=dict(t=60, b=80),
+        plot_bgcolor="rgba(0,0,0,0)",
+        yaxis=dict(gridcolor="rgba(220,220,220,0.3)")
     )
 
     return fig
