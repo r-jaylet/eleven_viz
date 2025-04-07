@@ -4,11 +4,9 @@ import os
 import streamlit as st
 
 from pages import (
-    additional_insights,
     gps_exploration,
     physical_capabilities,
-    recovery_status,
-    match_training
+    recovery_status
 )
 
 st.set_page_config(
@@ -209,10 +207,9 @@ def main():
         with metrics_col2:
             st.markdown(
                 """
-                - **GPS Data**: Track speed, distance, and movement patterns during matches and training
-                - **Physical Capabilities**: Monitor strength, power, and endurance metrics
-                - **Recovery Status**: Analyze sleep, nutrition, and physiological recovery indicators 
-                - **Additional Insights**: Explore advanced performance analytics and trends
+                - **Games & Training Performance**: Track speed, distance, and movement patterns during matches and training
+                - **Physical Capabilities Analysis**: Monitor strength, power, and endurance metrics
+                - **Recovery Status Analysis**: Analyze sleep, nutrition, and physiological recovery indicators 
                 """
             )
 
