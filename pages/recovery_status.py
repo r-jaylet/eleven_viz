@@ -44,32 +44,23 @@ def show():
 
         # OVERVIEW TAB
         with tabs[0]:
-            st.header("Recovery Summary")
+    
+            # Global recovery score
+            st.subheader("Recovery Summary")
+            st.markdown(""" 
+            This graph shows the evolution of the global recovery score over time, combining daily recovery values and a 7-day moving average. 
+            The blue line with markers represents the raw emboss_baseline_score collected each day, while the bold orange line smooths these fluctuations.
+            """)
+            fig = plot_global_recovery_score(df)
+            st.plotly_chart(fig, use_container_width=True)
 
-            # Two-column layout for main metrics
-            col1, col2 = st.columns(2)
-
-            with col1:
-                # Global recovery score
-                fig = plot_global_recovery_score(df)
-                st.plotly_chart(fig, use_container_width=True)
-
-            with col2:
-                # Radar chart for latest data
-                latest_date = date_filtered_df["sessionDate"].max()
-                latest_df = date_filtered_df[
-                    date_filtered_df["sessionDate"] == latest_date
-                ]
-                completeness_df = latest_df[
-                    latest_df["metric_type"] == "completeness"
-                ]
-
-                if not completeness_df.empty:
-                    fig = create_completeness_radar(completeness_df)
-                    st.plotly_chart(fig, use_container_width=True)
-
+            
             # Recovery metrics by category - simplified view
             st.subheader("Recovery by Category")
+            st.markdown(""" 
+            This multi-panel figure shows time series plots of recovery data by category, highlighting both data completeness (solid lines) and composite scores (dotted lines) over time. 
+                        Each subplot corresponds to a specific recovery category like sleep, soreness, or subjective
+            """)
             fig = plot_recovery_metrics_by_category(
                 df, start_date_str, end_date_str
             )
@@ -93,6 +84,10 @@ def show():
             with col1:
                 # Category completeness bar chart
                 st.subheader("Completeness by Category")
+                st.markdown("""
+                This bar chart shows the average data completeness across recovery categories such as sleep, soreness, subjective, and various musculoskeletal metrics. 
+                Each bar represents the proportion of days where data was available for that category, giving a snapshot of data coverage over time. 
+                It's useful for identifying which wellness domains are consistently tracked and which may need improved data collection practices—e.g. “subjective” has the highest completeness, while bio and msk_load_tolerance are less consistently recorded.""")
                 if not completeness_df.empty:
                     fig = create_category_completeness_bar(completeness_df)
                     st.plotly_chart(fig, use_container_width=True)
@@ -100,6 +95,7 @@ def show():
             with col2:
                 # Category selector with composite scores
                 st.subheader("Category Scores")
+                st.markdown("""This graph displays composite recovery scores across multiple wellness categories (e.g. soreness, sleep, subjective, bio) over time. """)
                 if not composite_df.empty:
                     fig = create_composite_line(composite_df)
                     st.plotly_chart(fig, use_container_width=True)
@@ -125,6 +121,10 @@ def show():
             
             # Weekly recovery heatmap
             st.subheader("Weekly recovery heatmap")
+            st.markdown("""
+            This heatmap visualizes how recovery scores vary by day and week. 
+            Each row represents a week (e.g., 2024-W14) and each column a day of the week, with color indicating the average emboss_baseline_score for that day. 
+            Green tones reflect higher recovery, while red indicates poor recovery.""")
             weekly_heatmap = plot_weekly_recovery_heatmap(df)
             st.plotly_chart(weekly_heatmap, use_container_width=True)
 

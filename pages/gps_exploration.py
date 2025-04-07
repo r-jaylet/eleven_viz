@@ -75,6 +75,11 @@ def show():
 
             # Simple distribution chart
             st.subheader("Distance by Duration")
+            st.markdown(""" 
+            This graph shows a distribution of total distance covered during matches. 
+            It visualizes how far players tend to run depending on how long they play. 
+            Each bar represents the count of matches falling into a specific distance range, and the chart overlays mean (dashed) and median (solid) distance markers for each duration group.
+            """)
             st.plotly_chart(
                 plot_distance_distribution_by_duration(df_filtered),
                 use_container_width=True,
@@ -84,28 +89,9 @@ def show():
         with tabs[1]:
             st.header("Match Performance")
 
-            # Performance by match time - simplified to one metric at a time
-            metric_option = st.selectbox(
-                "Select metric",
-                [
-                    "Distance Coverage",
-                    "Acceleration/Deceleration",
-                    "Heart Rate Zones",
-                ],
-            )
-
-            """
-            fig_distance, fig_accel, fig_hr = stats_vs_match_time(df_matches)
-
-            if metric_option == "Distance Coverage":
-                st.plotly_chart(fig_distance, use_container_width=True)
-            elif metric_option == "Acceleration/Deceleration":
-                st.plotly_chart(fig_accel, use_container_width=True)
-            else:
-                st.plotly_chart(fig_hr, use_container_width=True)
-            """
             # Individual match analysis with radar chart
             st.subheader("Match Details")
+            st.markdown("This radar chart displays a comprehensive performance profile for a single match, highlighting a player's physical and cardiovascular output across multiple GPS and heart rate metrics.")
             available_dates = (
                 df_matches["date"].dt.strftime("%d/%m/%Y").unique()
             )
@@ -159,7 +145,7 @@ def show():
             
             # Bar chart: Acceleration/Deceleration intensity
             st.subheader("Match Overview : Acceleration & Deceleration Intensity")
-
+            st.markdown("This bar chart shows acceleration and deceleration intensity for each match across the season, categorized by effort thresholds.")
             accel_decel_chart = plot_accel_decel_intensity_per_match(df_matches)
 
             if accel_decel_chart:
@@ -180,6 +166,15 @@ def show():
 
             # Simplified clustering
             st.subheader("Performance Clusters")
+
+            st.markdown(""" 
+            This visualization displays training session performance clusters based on selected physical metrics, using K-Means clustering. 
+            Each point represents a training session, categorized into Lower, Usual, or Better performance levels, based on patterns in the data. 
+            The clustering is computed using five features: distance, distance_over_24, accel_decel_over_3_5, peak_speed, and hr_zone_4_hms, which are scaled and grouped into three clusters.
+
+            Users can select any two features to explore performance groupings—common and effective combinations include distance vs peak_speed or distance vs accel_decel_over_3_5, as these best reflect both volume and intensity. 
+            The plot helps identify outliers, track training quality over time, and guide workload adjustments based on the underlying performance profile.
+            """)
 
             # Select only essential features for clustering
             cluster_features = [
@@ -228,6 +223,11 @@ def show():
 
             # Performance timeline
             st.subheader("Performance Timeline")
+            st.markdown("""
+            This timeline displays performance clusters over time, categorizing each session into Better, Usual, or Lower performances based on k-means clustering of key physical metrics (described in previous graph's decription). 
+            Each point represents a training or match session, with shapes distinguishing the session type and colors indicating the performance level.
+            This visualization helps identify periods of high or low performance, track consistency, and detect performance trends across the season.
+            """)
             seasons = df_combined["season"].unique()
             if len(seasons) > 0:
                 selected_season = st.selectbox("Select Season", seasons)
