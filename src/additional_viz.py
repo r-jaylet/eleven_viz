@@ -6,6 +6,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import plotly.subplots as sp
 from plotly.graph_objs import Figure
+from plotly.subplots import make_subplots
+
 
 # Consistent color palette matching other viz files
 COLORS = {
@@ -528,6 +530,477 @@ def plot_load_vs_recovery(merged_df: pd.DataFrame) -> Figure:
         hovermode="x unified",
         height=600,
         margin=COMMON_MARGINS,
+    )
+
+    return fig
+
+def plot_player_load_vs_expression(
+    gps_df_active: pd.DataFrame,
+    capability_df: pd.DataFrame,
+) -> Figure:
+    """
+    Compare normalized GPS composite load with physical expression benchmark over time.
+    """
+    # Normalize relevant GPS metrics
+    load_metrics = ["distance", "accel_decel_over_2_5", "distance_over_24", "peak_speed"]
+    gps_df = gps_df_active.copy()
+
+    for metric in load_metrics:
+        col_norm = f"{metric}_norm"
+        min_val = gps_df[metric].min()
+        max_val = gps_df[metric].max()
+        gps_df[col_norm] = (gps_df[metric] - min_val) / (max_val - min_val) if max_val != min_val else 0.0
+
+    # Compute composite load score per session
+    gps_df["composite_load"] = gps_df[[f"{m}_norm" for m in load_metrics]].mean(axis=1)
+
+    # Daily average composite load
+    gps_daily = gps_df.groupby("date")["composite_load"].mean().reset_index()
+
+    # Daily average benchmark percent
+    capability_daily = capability_df.groupby("testDate")["benchmarkPct"].mean().reset_index()
+
+   # Apply 7-day rolling average to smooth the load curve
+    gps_daily["composite_load_smooth"] = (
+        gps_daily["composite_load"].rolling(window=7, min_periods=1).mean() 
+    ) 
+
+    # Create dual-axis figure
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(
+        go.Scatter(
+            x=gps_daily["date"],
+            y=gps_daily["composite_load"],
+            mode="lines+markers",
+            name="Composite Load (Normalized)",
+            line=dict(color=COLORS["primary"], width=3),
+            marker=dict(color=COLORS["primary"], size=6),
+            hovertemplate="Date: %{x|%d/%m/%Y}<br>Load: %{y:.2f}<extra></extra>",
+        ),
+        secondary_y=False,
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=gps_daily["date"],
+            y=gps_daily["composite_load_smooth"],
+            mode="lines",
+            name="Smoothed Load (7-day Avg)",
+            line=dict(color=COLORS["warning"], width=3, dash="dash"),
+            hovertemplate="Date: %{x|%d/%m/%Y}<br>Smoothed Load: %{y:.2f}<extra></extra>",
+        ),
+        secondary_y=False,
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=capability_daily["testDate"],
+            y=capability_daily["benchmarkPct"],
+            mode="lines+markers",
+            name="BenchmarkPct (Expression)",
+            line=dict(color=COLORS["accent2"], width=3),
+            marker=dict(color=COLORS["accent2"], size=6),
+            hovertemplate="Date: %{x|%d/%m/%Y}<br>Benchmark: %{y:.1f}%<extra></extra>",
+        ),
+        secondary_y=True,
+    )
+
+    fig.update_layout(
+        title={
+            "text": "Player Load vs Expression Development",
+            "font": {"size": 18, "color": COLORS["text"]},
+            "x": 0.5,
+        },
+        xaxis_title="Date",
+        yaxis_title="Composite Load (Normalized)",
+        template=TEMPLATE,
+        hovermode="x unified",
+        height=550,
+        margin=COMMON_MARGINS,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=12),
+        ),
+    )
+
+    fig.update_yaxes(
+        title_text="Composite Load (Normalized)",
+        secondary_y=False,
+        showgrid=True,
+        gridcolor="rgba(220,220,220,0.5)",
+    )
+    fig.update_yaxes(
+        title_text="Benchmark Percentage",
+        secondary_y=True,
+        showgrid=False,
+    )
+
+    return fig
+
+
+def plot_pre_post_match_recovery_dumbbell(
+    gps_df: pd.DataFrame,
+    recovery_df: pd.DataFrame,
+    recovery_metric: str = "soreness_baseline_composite",
+) -> Figure:
+    """
+    Compare pre- vs. post-match recovery scores for each match using a color-coded dumbbell chart (single player).
+
+    Args:
+        gps_df: GPS data from `load_gps()` with 'date' and 'is_match_day'.
+        recovery_df: Recovery data from `load_recovery_status()` with 'sessionDate', 'metric', 'value'.
+        recovery_metric: The specific recovery metric to compare.
+    """
+    match_days = gps_df[gps_df["is_match_day"] == True]["date"].dropna().unique()
+    match_days = pd.to_datetime(match_days)
+
+    rec = recovery_df[
+        (recovery_df["metric"] == recovery_metric)
+        & recovery_df["sessionDate"].notna()
+        & recovery_df["value"].notna()
+    ].copy()
+
+    data = []
+    for match_date in match_days:
+        pre_day = match_date - pd.Timedelta(days=1)
+        post_day = match_date + pd.Timedelta(days=1)
+
+        # Allow tolerance window ±1 day
+        pre_rec = rec[(rec["sessionDate"] >= pre_day - pd.Timedelta(days=1)) &
+                      (rec["sessionDate"] <= pre_day + pd.Timedelta(days=1))]
+        post_rec = rec[(rec["sessionDate"] >= post_day - pd.Timedelta(days=1)) &
+                       (rec["sessionDate"] <= post_day + pd.Timedelta(days=1))]
+
+        pre_value = pre_rec["value"].mean()
+        post_value = post_rec["value"].mean()
+
+        if pd.notna(pre_value) and pd.notna(post_value):
+            delta = pre_value - post_value
+            if delta > 0.3:
+                color = COLORS["danger"]
+                category = "🟥 High Impact"
+            elif delta > 0.1:
+                color = COLORS["warning"]
+                category = "🟨 Moderate Impact"
+            else:
+                color = COLORS["success"]
+                category = "🟩 Low Impact"
+
+            data.append({
+                "match_date": match_date.strftime("%d/%m/%Y"),
+                "pre": pre_value,
+                "post": post_value,
+                "color": color,
+                "category": category,
+            })
+
+    if not data:
+        return go.Figure().update_layout(
+            title="No recovery data available for pre- and post-match comparisons.",
+            template=TEMPLATE,
+        )
+
+    df = pd.DataFrame(data)
+    fig = go.Figure()
+
+    # Dumbbell lines (color-coded)
+    for _, row in df.iterrows():
+        fig.add_trace(
+            go.Scatter(
+                x=[row["pre"], row["post"]],
+                y=[row["match_date"], row["match_date"]],
+                mode="lines",
+                line=dict(color=row["color"], width=3),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+    # Pre-match markers
+    fig.add_trace(
+        go.Scatter(
+            x=df["pre"],
+            y=df["match_date"],
+            mode="markers+text",
+            name="Pre-Match",
+            marker=dict(color=COLORS["primary"], size=10),
+            text=["Pre" for _ in df["pre"]],
+            textposition="middle right",
+            hovertemplate="Match: %{y}<br>Pre: %{x:.2f}<extra></extra>",
+        )
+    )
+
+    # Post-match markers
+    fig.add_trace(
+        go.Scatter(
+            x=df["post"],
+            y=df["match_date"],
+            mode="markers+text",
+            name="Post-Match",
+            marker=dict(color=COLORS["warning"], size=10),
+            text=["Post" for _ in df["post"]],
+            textposition="middle left",
+            hovertemplate="Match: %{y}<br>Post: %{x:.2f}<extra></extra>",
+        )
+    )
+
+    # Final layout
+    fig.update_layout(
+        title={
+            "text": f"Pre vs Post Match Recovery – {recovery_metric.replace('_', ' ').title()}",
+            "x": 0.5,
+            "font": {"size": 18, "color": COLORS["text"]},
+        },
+        xaxis_title="Recovery Score",
+        yaxis_title="Match Date",
+        template=TEMPLATE,
+        height=650,
+        margin=COMMON_MARGINS,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=12),
+        ),
+    )
+
+    return fig
+
+
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.graph_objs import Figure
+
+def plot_recovery_vs_load_peaks(
+    gps_df: pd.DataFrame,
+    recovery_df: pd.DataFrame,
+    recovery_metric: str = "soreness_baseline_composite",
+    rolling_window: int = 7
+) -> Figure:
+    """
+    Compare weekly rolling average of GPS composite load with recovery scores over time.
+
+    Args:
+        gps_df: Preprocessed GPS data including 'date' and load metrics.
+        recovery_df: Preprocessed recovery data including 'sessionDate', 'metric', and 'value'.
+        recovery_metric: Recovery metric to track (e.g. soreness, sleep).
+        rolling_window: Days to calculate the rolling average for GPS load.
+
+    Returns:
+        Plotly Figure showing load (area) vs. recovery (line).
+    """
+    # Parse date columns
+    gps_df["date"] = pd.to_datetime(gps_df["date"], errors="coerce")
+    recovery_df["sessionDate"] = pd.to_datetime(recovery_df["sessionDate"], errors="coerce")
+
+    # Calculate composite load (normalized)
+    metrics = ["distance", "accel_decel_over_2_5", "distance_over_24", "peak_speed"]
+    gps = gps_df.copy()
+    for m in metrics:
+        min_val, max_val = gps[m].min(), gps[m].max()
+        gps[f"{m}_norm"] = (gps[m] - min_val) / (max_val - min_val) if max_val != min_val else 0
+    gps["composite_load"] = gps[[f"{m}_norm" for m in metrics]].mean(axis=1)
+
+    # Aggregate and compute rolling average
+    gps_daily = gps.groupby("date")["composite_load"].mean().reset_index()
+    gps_daily["rolling_load"] = gps_daily["composite_load"].rolling(window=rolling_window, min_periods=1).mean()
+
+    # Filter and average recovery data
+    rec = recovery_df[recovery_df["metric"] == recovery_metric].copy()
+    rec_daily = rec.groupby("sessionDate")["value"].mean().reset_index()
+
+    # Merge on date
+    df = pd.merge(gps_daily, rec_daily, left_on="date", right_on="sessionDate", how="outer").sort_values("date")
+
+    # Create the figure
+    fig = go.Figure()
+
+    # Area for training load
+    fig.add_trace(
+        go.Scatter(
+            x=df["date"],
+            y=df["rolling_load"],
+            name="Rolling Load",
+            fill="tozeroy",
+            mode="lines",
+            line=dict(color=COLORS["primary"]),
+            yaxis="y1",
+            hovertemplate="Date: %{x|%d/%m/%Y}<br>Load: %{y:.2f}<extra></extra>",
+        )
+    )
+
+    # Line for recovery score
+    fig.add_trace(
+        go.Scatter(
+            x=df["date"],
+            y=df["value"],
+            name="Recovery Score",
+            mode="lines+markers",
+            line=dict(color=COLORS["warning"], width=2),
+            yaxis="y2",
+            hovertemplate="Date: %{x|%d/%m/%Y}<br>Recovery: %{y:.2f}<extra></extra>",
+        )
+    )
+
+    # Layout
+    fig.update_layout(
+        title={
+            "text": f"Recovery Score vs Training Load Peaks – {recovery_metric.replace('_', ' ').title()}",
+            "x": 0.5,
+            "font": {"size": 18, "color": COLORS["text"]},
+        },
+        xaxis=dict(title="Date"),
+        yaxis=dict(
+            title="Composite Load (Rolling Avg)",
+            showgrid=False,
+            titlefont=dict(color=COLORS["primary"]),
+            tickfont=dict(color=COLORS["primary"]),
+        ),
+        yaxis2=dict(
+            title="Recovery Score",
+            overlaying="y",
+            side="right",
+            showgrid=False,
+            titlefont=dict(color=COLORS["warning"]),
+            tickfont=dict(color=COLORS["warning"]),
+        ),
+        template=TEMPLATE,
+        height=600,
+        margin=COMMON_MARGINS,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+
+    return fig
+
+def plot_readiness_snapshot_before_matches(
+    gps_df: pd.DataFrame,
+    recovery_df: pd.DataFrame,
+    capability_df: pd.DataFrame,
+    recovery_metric: str = "soreness_baseline_composite",
+    readiness_thresholds: tuple = (-0.1, 0.1)
+) -> go.Figure:
+    """
+    Display player readiness before matches using GPS load, recovery scores, and latest or fallback benchmarkPct.
+
+    Args:
+        gps_df: DataFrame with GPS tracking data ('date', 'is_match_day', and metrics).
+        recovery_df: DataFrame with recovery scores ('sessionDate', 'metric', 'value').
+        capability_df: DataFrame with physical benchmarks ('testDate', 'benchmarkPct').
+        recovery_metric: The recovery metric to use (default: soreness_baseline_composite).
+        readiness_thresholds: Tuple (low, high) for readiness color thresholds.
+
+    Returns:
+        Plotly horizontal bar chart showing color-coded readiness.
+    """
+    gps_df["date"] = pd.to_datetime(gps_df["date"])
+    recovery_df["sessionDate"] = pd.to_datetime(recovery_df["sessionDate"])
+    capability_df["testDate"] = pd.to_datetime(capability_df["testDate"])
+
+    match_days = pd.to_datetime(gps_df[gps_df["is_match_day"] == True]["date"].dropna().unique())
+    fallback_benchmark = (
+        capability_df.sort_values("testDate")["benchmarkPct"]
+        .dropna().iloc[0]
+        if not capability_df.empty else None
+    )
+
+    readiness_records = []
+    for match_date in match_days:
+        load = gps_df[gps_df["date"] == match_date]["distance"].mean()
+
+        rec = recovery_df[
+            (recovery_df["metric"] == recovery_metric) &
+            (recovery_df["sessionDate"] >= match_date - pd.Timedelta(days=2)) &
+            (recovery_df["sessionDate"] <= match_date - pd.Timedelta(days=1))
+        ]
+        recovery_score = rec["value"].mean() if not rec.empty else None
+
+        cap = capability_df[capability_df["testDate"] <= match_date]
+        benchmark_score = (
+            cap.sort_values("testDate")["benchmarkPct"].iloc[-1]
+            if not cap.empty else fallback_benchmark
+        )
+
+        if pd.isna(recovery_score) and pd.isna(benchmark_score):
+            continue
+
+        scores = [s for s in [recovery_score, benchmark_score] if pd.notna(s)]
+        composite = sum(scores) / len(scores) if scores else None
+
+        if composite is None:
+            color = COLORS["accent2"]
+        elif composite < readiness_thresholds[0]:
+            color = COLORS["danger"]
+        elif composite > readiness_thresholds[1]:
+            color = COLORS["success"]
+        else:
+            color = COLORS["warning"]
+
+        readiness_records.append({
+            "match_date": match_date,
+            "load": load,
+            "recovery": recovery_score,
+            "benchmarkPct": benchmark_score,
+            "readiness": composite,
+            "color": color,
+        })
+
+    df_ready = pd.DataFrame(readiness_records)
+
+    if df_ready.empty:
+        return go.Figure().update_layout(
+            title="No match readiness data available.",
+            template=TEMPLATE
+        )
+
+    fig = go.Figure()
+    for _, row in df_ready.iterrows():
+        fig.add_trace(go.Bar(
+            x=[row["readiness"]],
+            y=[row["match_date"]],
+            orientation="h",
+            marker=dict(color=row["color"]),
+            hovertemplate=(
+                f"Match: {row['match_date'].strftime('%d/%m/%Y')}<br>"
+                f"Load: {row['load']:.0f}<br>"
+                f"Recovery: {row['recovery']:.2f}<br>"
+                f"Benchmark: {row['benchmarkPct']:.2f}<br>"
+                f"Readiness Score: {row['readiness']:.2f}<extra></extra>"
+            ),
+            showlegend=False
+        ))
+
+    fig.update_layout(
+        title={
+            "text": "📅 Readiness Snapshot Before Each Match",
+            "x": 0.5,
+            "font": {"size": 18, "color": COLORS["text"]},
+        },
+        xaxis=dict(
+            title="Readiness Score (Recovery + Benchmark)",
+            gridcolor="rgba(200,200,200,0.2)",
+            zeroline=True
+        ),
+        yaxis=dict(
+            title="Match Date",
+            autorange="reversed",
+            gridcolor="rgba(200,200,200,0.2)"
+        ),
+        height=500 + len(df_ready) * 12,
+        template=TEMPLATE,
+        margin=COMMON_MARGINS
     )
 
     return fig
