@@ -8,6 +8,7 @@ from pages import (
     gps_exploration,
     physical_capabilities,
     recovery_status,
+    match_training
 )
 
 st.set_page_config(
@@ -57,10 +58,9 @@ def create_sidebar():
             "Go to:",
             [
                 "Home",
-                "GPS",
-                "Physical Capabilities",
-                "Recovery Status",
-                "Additional Insights",
+                "Games & Training Performance",
+                "Physical Capabilities Analysis",
+                "Recovery Analysis"
             ],
         )
 
@@ -220,17 +220,14 @@ def main():
             "🔍 Navigate using the sidebar to explore specialized analytics modules for your players."
         )
 
-    elif page == "GPS":
+    elif page == "Games & Training Performance":
         gps_exploration.show()
 
-    elif page == "Physical Capabilities":
+    elif page == "Physical Capabilities Analysis":
         physical_capabilities.show()
 
-    elif page == "Recovery Status":
+    elif page == "Recovery Analysis":
         recovery_status.show()
-
-    elif page == "Additional Insights":
-        additional_insights.show()
 
 
 if __name__ == "__main__":

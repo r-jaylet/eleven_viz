@@ -119,7 +119,7 @@ def convert_hms_to_minutes(hms: str) -> float:
             return 0
     return 0
 
-
+'''
 def hms_to_seconds(hms: str) -> int:
     """
     Convert a duration in HH:MM:SS format to total seconds.
@@ -138,6 +138,22 @@ def hms_to_seconds(hms: str) -> int:
         return h * 3600 + m * 60 + s
     except ValueError:
         raise ValueError("Invalid time format. Expected 'HH:MM:SS'.")
+'''
+
+def hms_to_seconds(hms) -> int:
+    """
+    Convert either a string in 'HH:MM:SS' format or a numeric value
+    (already in seconds) to an integer number of seconds.
+    """
+    try:
+        if isinstance(hms, (int, float)):
+            return int(hms)
+        if isinstance(hms, str) and ":" in hms:
+            h, m, s = map(int, hms.split(":"))
+            return h * 3600 + m * 60 + s
+        raise ValueError
+    except Exception:
+        raise ValueError(f"Invalid time format: {hms}. Expected 'HH:MM:SS' or seconds.")
 
 
 def general_kpis(df_filtered: pd.DataFrame) -> Dict[str, Any]:
@@ -337,53 +353,6 @@ def plot_average_distances_histogram_plotly(df: pd.DataFrame) -> Figure:
     )
 
     return fig
-
-'''
-def plot_cluster(df: pd.DataFrame, x: str, y: str):
-    """
-    Visualize the clusters of matches based on two given features using Plotly.
-
-    Args:
-        df: DataFrame containing match data with 'cluster_label' column
-        x: Feature to plot on x-axis (e.g., 'distance')
-        y: Feature to plot on y-axis (e.g., 'peak_speed')
-
-    Returns:
-        Plotly figure with scatter plot
-    """
-    cluster_colors = {
-        "Better performances": COLORS["primary"],
-        "Usual performances": COLORS["secondary"],
-        "Lower performances": COLORS["accent1"],
-    }
-
-    fig = px.scatter(
-        df,
-        x=x,
-        y=y,
-        color=df["cluster_label"].astype(str),
-        color_discrete_map=cluster_colors,
-        labels={
-            x: x.replace("_", " ").title(),
-            y: y.replace("_", " ").title(),
-            "cluster_label": "Performance Level",
-        },
-        size_max=12,
-        template=TEMPLATE,
-    )
-
-    fig.update_traces(
-        marker=dict(size=10, opacity=0.8, line=dict(width=1, color="#FFFFFF"))
-    )
-
-    fig.update_layout(
-        legend_title_text="Performance Level",
-        font=dict(family="Arial", size=12),
-        margin=COMMON_MARGINS,
-    )
-
-    return fig
-'''
 
 def plot_cluster(df: pd.DataFrame, x_feature: str, y_feature: str) -> go.Figure:
     """

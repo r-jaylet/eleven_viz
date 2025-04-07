@@ -1,7 +1,10 @@
 import pandas as pd
 import streamlit as st
 
-from src.data_preprocessing import load_physical_capabilities
+from src.data_preprocessing import (
+    load_physical_capabilities, 
+    load_gps
+)
 from src.physical_viz import (
     calculate_kpis,
     create_expression_count_chart,
@@ -15,12 +18,21 @@ from src.physical_viz import (
     create_movement_trend_chart
 )
 
+from src.additional_viz import (
+    plot_player_load_vs_expression
+)
+
 
 def show():
     st.title("Physical Capabilities")
 
     try:
         # Load data
+        df_gps, df_active = load_gps(
+        "data/players_data/marc_cucurella/CFC GPS Data.csv",
+        season=st.session_state.selected_season,
+        )
+
         df = load_physical_capabilities(
             "data/players_data/marc_cucurella/CFC Physical Capability Data.csv",
             season=st.session_state.selected_season,
@@ -43,7 +55,7 @@ def show():
             st.metric("Best Movement", best_movement)
 
         # Simplified tabs
-        tab1, tab2 = st.tabs(["Performance Overview", "Movement Analysis"])
+        tab1, tab2, tab3, tab4 = st.tabs(["Performance Overview", "Movement Analysis", "Training Load vs Expression Development", "Recent Results"])
 
         # PERFORMANCE OVERVIEW TAB
         with tab1:
@@ -120,8 +132,20 @@ def show():
             """)
             fig_movement_perf_trend = create_movement_trend_chart(df_filtered)
             st.plotly_chart(fig_movement_perf_trend, use_container_width=True)
+        
+        with tab3: 
+            # Load vs expression visualization 
+            st.subheader("Plaver Load vs Expression Development")
+            st.markdown("""
+            This graph visualizes the relationship between a player’s physical training load and their expression development (performance benchmark) over time. It combines three curves:
+            - Composite Load (Normalized): A daily average derived from normalized GPS metrics (distance, accelerations, high-speed distance, peak speed).
+            - Smoothed Load (7-day Avg): A rolling average of the composite load to highlight weekly load trends.
+            - BenchmarkPct (Expression): The player's benchmark performance percentage from capability assessments (e.g. sprint, jump, strength tests).
+            This chart helps coaches assess whether increased training loads correlate with improvements in physical capabilities.  """)
+            fig_load_vs_expression = plot_player_load_vs_expression(df_gps, df_filtered)
+            st.plotly_chart(fig_load_vs_expression, use_container_width=True)
 
-
+        with tab4:
             # Specific date data
             st.subheader("Recent Test Results")
             latest_date = df_filtered["testDate"].max()

@@ -3,6 +3,12 @@ import streamlit as st
 import matplotlib.pyplot as plt
 
 
+from src.additional_viz import (
+    compute_load,
+    plot_load,
+    plot_load_over_time,
+)
+
 from src.data_preprocessing import load_gps
 from src.gps_viz import (
     cluster_performance,
@@ -33,7 +39,7 @@ def show():
         df_trainings = df_filtered[df_filtered["opposition_code"].isna()]
 
         # Main tabs
-        tabs = st.tabs(["Overview", "Match Analysis", "Training Analysis"])
+        tabs = st.tabs(["Key Performance Indicators", "Match Analysis", "Load (Training + Games)", "Performance Clustering"])
 
         # OVERVIEW TAB
         with tabs[0]:
@@ -73,21 +79,10 @@ def show():
                     f"{training_kpis['average_peak_speed']:.1f} km/h",
                 )
 
-            # Simple distribution chart
-            st.subheader("Distance by Duration")
-            st.markdown(""" 
-            This graph shows a distribution of total distance covered during matches. 
-            It visualizes how far players tend to run depending on how long they play. 
-            Each bar represents the count of matches falling into a specific distance range, and the chart overlays mean (dashed) and median (solid) distance markers for each duration group.
-            """)
-            st.plotly_chart(
-                plot_distance_distribution_by_duration(df_filtered),
-                use_container_width=True,
-            )
-
         # MATCH ANALYSIS TAB
         with tabs[1]:
-            st.header("Match Performance")
+            
+            st.header("Match Analysis : per game")
 
             # Individual match analysis with radar chart
             st.subheader("Match Details")
@@ -133,8 +128,11 @@ def show():
             else:
                 st.info("No matches available.")
 
+
+            st.header("Match Analysis : overview of all games")
+
             # Bar chart: Peak speed per match
-            st.subheader("Match Details : Peak Speed")
+            st.subheader("Match Overview : Peak Speed")
 
             peak_speed_chart = plot_peak_speed_per_match(df_matches)
 
@@ -153,16 +151,70 @@ def show():
             else:
                 st.info("No acceleration/deceleration data available for match dates.")
 
-        # TRAINING ANALYSIS TAB
-        with tabs[2]:
-            st.header("Training & Performance Clusters")
-
-            # Training distribution
-            st.subheader("Training Distance")
+            # Simple distribution chart
+            st.subheader("Match Overview : Distance by Duration")
+            st.markdown(""" 
+            This graph shows a distribution of total distance covered during matches. 
+            It visualizes how far players tend to run depending on how long they play. 
+            Each bar represents the count of matches falling into a specific distance range, and the chart overlays mean (dashed) and median (solid) distance markers for each duration group.
+            """)
             st.plotly_chart(
-                plot_distance_distribution_by_duration(df_trainings),
+                plot_distance_distribution_by_duration(df_filtered),
                 use_container_width=True,
             )
+    
+        # LOAD TAB 
+        with tabs[2]:
+            st.header("Training Load")
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                alpha = st.slider("Distance Weight", 1.0, 3.0, 2.0, 0.5)
+            with col2:
+                beta = st.slider("Accel/Decel Weight", 1.0, 3.0, 1.0, 0.5)
+            with col3:
+                gamma = st.slider("High Speed Weight", 1.0, 3.0, 3.0, 0.5)
+
+            rolling_window = st.slider("Average Window (days)", 3, 14, 7)
+
+            # Calculate load
+            df, threshold, df_load_by_date = compute_load(
+                df,
+                alpha=alpha,
+                beta=beta,
+                gamma=gamma,
+                top_x_percent=5,
+            )
+
+            # Key metrics
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Average Load", f"{df_load_by_date['load'].mean():.2f}")
+            with col2:
+                st.metric("Max Load", f"{df_load_by_date['load'].max():.2f}")
+            with col3:
+                st.metric("High Load Threshold", f"{threshold:.2f}")
+
+            # Load visualization
+            st.subheader("Load Distribution")
+            st.markdown("This graph breaks down how training load is related to key physical metrics: total distance, high-speed distance (>21 km/h), and accel/decel efforts (>2.5 m/s²). ")
+            fig_load = plot_load(df)
+            st.plotly_chart(fig_load, use_container_width=True)
+
+            st.subheader("Load Over Time")
+            st.markdown("""
+            This chart tracks the player’s daily training load over time. Training load is calculated using a composite formula that combines distance, high-speed distance, and accel/decel counts, each passed through a sigmoid transformation and weighted by coefficients (α, β, γ). 
+            This approach gives a normalized intensity score that reflects both volume and intensity of physical effort across sessions.""")
+            fig_load_time = plot_load_over_time(
+                df_load_by_date,
+                rolling_window=rolling_window,
+            )
+            st.plotly_chart(fig_load_time, use_container_width=True)
+        
+        
+        # TRAINING ANALYSIS TAB
+        with tabs[3]:
+            st.header("Performance Clustering")
 
             # Simplified clustering
             st.subheader("Performance Clusters")
