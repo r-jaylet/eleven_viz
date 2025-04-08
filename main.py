@@ -3,11 +3,7 @@ import os
 
 import streamlit as st
 
-from pages import (
-    gps_exploration,
-    physical_capabilities,
-    recovery_status
-)
+from pages import gps_exploration, physical_capabilities, recovery_status
 
 st.set_page_config(
     page_title="FC Performance Insights",
@@ -58,7 +54,7 @@ def create_sidebar():
                 "Home",
                 "Games & Training Performance",
                 "Physical Capabilities Analysis",
-                "Recovery Analysis"
+                "Recovery Analysis",
             ],
         )
 

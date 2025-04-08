@@ -1,5 +1,4 @@
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -7,7 +6,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.graph_objects import Figure
 
-# Consistent color palette matching gps_viz.py
 COLORS = {
     "primary": "#1A237E",  # Dark blue
     "secondary": "#004D40",  # Dark green
@@ -166,18 +164,23 @@ def create_movement_pie_chart(df: pd.DataFrame) -> Figure:
     )
     return fig
 
+
 def create_movement_over_time_chart(df: pd.DataFrame) -> Figure:
     """Create stacked bar chart showing movement type distribution over months."""
     # Convert to month and year (e.g., '2024-03')
     df["month"] = df["testDate"].dt.to_period("M").astype(str)
 
     # Group by month and movement type
-    monthly_counts = df.groupby(["month", "movement"]).size().reset_index(name="count")
+    monthly_counts = (
+        df.groupby(["month", "movement"]).size().reset_index(name="count")
+    )
 
     # Sort months properly
     monthly_counts["month"] = pd.to_datetime(monthly_counts["month"])
     monthly_counts = monthly_counts.sort_values("month")
-    monthly_counts["month"] = monthly_counts["month"].dt.strftime("%b %Y")  # e.g., 'Mar 2024'
+    monthly_counts["month"] = monthly_counts["month"].dt.strftime(
+        "%b %Y"
+    )  # e.g., 'Mar 2024'
 
     fig = px.bar(
         monthly_counts,
@@ -209,6 +212,7 @@ def create_movement_over_time_chart(df: pd.DataFrame) -> Figure:
     )
 
     return fig
+
 
 def create_movement_quality_heatmap(df: pd.DataFrame) -> Figure:
     """Create heatmap showing relationship between movement types and quality."""
@@ -357,34 +361,38 @@ def create_performance_trend_chart(df: pd.DataFrame) -> Figure:
 
     # Daily mean
     daily_avg = (
-        filtered_df.groupby("testDate")["benchmarkPct"]
-        .mean()
-        .reset_index()
+        filtered_df.groupby("testDate")["benchmarkPct"].mean().reset_index()
     )
-    
+
     # Smoothed trend (rolling mean)
-    daily_avg["Smoothed"] = daily_avg["benchmarkPct"].rolling(window=3, min_periods=1).mean()
+    daily_avg["Smoothed"] = (
+        daily_avg["benchmarkPct"].rolling(window=3, min_periods=1).mean()
+    )
 
     fig = go.Figure()
 
     # Raw daily average line
-    fig.add_trace(go.Scatter(
-        x=daily_avg["testDate"],
-        y=daily_avg["benchmarkPct"],
-        mode="lines+markers",
-        name="Daily Avg",
-        line=dict(color="gray", width=1),
-        marker=dict(size=4)
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=daily_avg["testDate"],
+            y=daily_avg["benchmarkPct"],
+            mode="lines+markers",
+            name="Daily Avg",
+            line=dict(color="gray", width=1),
+            marker=dict(size=4),
+        )
+    )
 
     # Smoothed trend line
-    fig.add_trace(go.Scatter(
-        x=daily_avg["testDate"],
-        y=daily_avg["Smoothed"],
-        mode="lines",
-        name="Smoothed Trend",
-        line=dict(color=COLORS["primary"], width=3)
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=daily_avg["testDate"],
+            y=daily_avg["Smoothed"],
+            mode="lines",
+            name="Smoothed Trend",
+            line=dict(color=COLORS["primary"], width=3),
+        )
+    )
 
     fig.update_layout(
         title="Performance Trend Over Time",
@@ -401,7 +409,7 @@ def create_performance_trend_chart(df: pd.DataFrame) -> Figure:
             xanchor="right",
             x=1,
             font=dict(size=12),
-        )
+        ),
     )
 
     return fig

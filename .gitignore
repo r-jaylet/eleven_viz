@@ -159,7 +159,4 @@ dbt_packages
 target
 logs
 
-
-*.csv
-
 *.xlsx

@@ -3,12 +3,9 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import seaborn as sns
 from plotly.graph_objects import Figure
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-from matplotlib.colors import to_rgba
-import matplotlib.pyplot as plt
 
 # Consistent color palette
 COLORS = {
@@ -733,6 +730,7 @@ def plot_avg_hr_zones(df: pd.DataFrame) -> Optional[go.Figure]:
 
 import plotly.graph_objects as go
 
+
 def plot_avg_hr_zones(df: pd.DataFrame) -> Optional[go.Figure]:
     hr_zones = [
         "hr_zone_1_hms", "hr_zone_2_hms", "hr_zone_3_hms",
@@ -837,9 +835,11 @@ def plot_peak_speed_per_match(df: pd.DataFrame) -> Optional[go.Figure]:
 
     return fig
 
-import plotly.graph_objects as go
-import pandas as pd
 from typing import Optional
+
+import pandas as pd
+import plotly.graph_objects as go
+
 
 def plot_accel_decel_intensity_per_match(df: pd.DataFrame) -> Optional[go.Figure]:
     """

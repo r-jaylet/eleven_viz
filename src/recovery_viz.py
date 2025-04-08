@@ -5,7 +5,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import plotly.subplots as sp
 
-# Consistent color palette matching other viz files
 COLORS = {
     "primary": "#1A237E",  # Dark blue
     "secondary": "#004D40",  # Dark green
@@ -657,31 +656,38 @@ def plot_weekly_recovery_heatmap(df: pd.DataFrame) -> go.Figure:
 
     # Pivot for heatmap
     pivot_df = df.pivot_table(
-        index="week_label",
-        columns="weekday",
-        values="value",
-        aggfunc="mean"
+        index="week_label", columns="weekday", values="value", aggfunc="mean"
     )
 
     # Reorder weekdays
-    weekday_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    weekday_order = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ]
     pivot_df = pivot_df.reindex(columns=weekday_order)
 
     # Build heatmap
-    fig = go.Figure(data=go.Heatmap(
-        z=pivot_df.values,
-        x=pivot_df.columns.tolist(),
-        y=pivot_df.index.tolist(),
-        colorscale='RdYlGn',
-        colorbar=dict(title="Recovery Score")
-    ))
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=pivot_df.values,
+            x=pivot_df.columns.tolist(),
+            y=pivot_df.index.tolist(),
+            colorscale="RdYlGn",
+            colorbar=dict(title="Recovery Score"),
+        )
+    )
 
     fig.update_layout(
         title="Weekly Recovery Heatmap (Single Player)",
         xaxis_title="Day of Week",
         yaxis_title="Week",
         template="plotly_dark",
-        height=600
+        height=600,
     )
 
     return fig
